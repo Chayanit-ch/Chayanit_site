@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-project-field="title">PROJECT</title>
+<meta name="description" content="Case study — placeholder content.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="project">
+
+<a class="skip-link" href="#main" data-bind="ui.skipLink">Skip to content</a>
+
+<header class="nav" id="nav" data-nav>
+  <div class="nav__location" data-bind="nav.location">[LOCATION]</div>
+  <nav class="nav__pill" aria-label="Primary">
+    <a data-nav-home><img class="nav__avatar" data-bind-src="nav.avatar" alt="Home" width="32" height="32"></a>
+    <div class="nav__links" data-nav-links></div>
+    <button class="nav__burger" type="button" data-nav-burger aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+  <div class="nav__actions">
+    <button class="nav__lang" id="lang-toggle" type="button" aria-label="Toggle language">
+      <span class="nav__lang-label" data-lang-label>EN</span>
+    </button>
+  </div>
+</header>
+
+<!-- same fixed "rocket" scroll-progress guide as Home/Work — purely driven
+     by the shared --scroll-progress CSS var (see initScrollEngine in
+     script.js), which every page computes regardless of content. -->
+<div class="scroll-progress" aria-hidden="true">
+  <div class="scroll-progress__track">
+    <div class="scroll-progress__fill" data-scroll-fill></div>
+    <div class="scroll-progress__marker" data-scroll-marker>
+      <svg viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2 C16 7 17 14 15 20 L9 20 C7 14 8 7 12 2 Z" fill="currentColor"/>
+        <circle cx="12" cy="11" r="2.3" fill="#2f6fb0"/>
+        <path d="M9 19.5 L5.5 25.5 L9 23 Z" fill="currentColor" opacity=".75"/>
+        <path d="M15 19.5 L18.5 25.5 L15 23 Z" fill="currentColor" opacity=".75"/>
+        <path d="M10.4 21.5 L12 28.5 L13.6 21.5 Z" fill="#f08462"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<main id="main">
+  <section class="case-hero" data-scene data-scene-name="case-hero">
+    <div class="case-hero__index" data-reveal data-project-field="index">01</div>
+    <h1 class="case-hero__title" data-reveal data-project-field="title">[PROJECT TITLE]</h1>
+    <p class="case-hero__desc" data-reveal data-project-field="description">[PROJECT DESCRIPTION]</p>
+  </section>
+
+  <div class="case-body">
+    <!-- ambient background icons — same line-art vocabulary as the Work
+         archive pages, scattered across this whole cream body area (not the
+         photographic hero above, which is busy enough on its own). -->
+    <div class="scene__deco" aria-hidden="true" style="color:rgba(31,42,60,.4)">
+      <span class="deco deco--ambient" style="top:3%; left:3%; font-family:monospace; font-size:1.4rem;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--star" style="top:8%; right:6%;">✦</span>
+      <span class="deco deco--ambient deco--cloud" style="top:14%; right:20%; width:46px;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient" style="top:22%; left:2%; font-family:monospace; font-size:1.1rem; opacity:.35;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="top:29%; right:3%; font-size:.75rem;">✧</span>
+      <span class="deco deco--ambient" style="top:37%; left:5%; font-family:monospace; font-size:.7rem; letter-spacing:.1em; opacity:.35;">01001010</span>
+      <span class="deco deco--ambient" style="top:45%; right:4%; width:50px;">
+        <svg viewBox="0 0 64 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="4" width="48" height="30" rx="3" stroke="currentColor" stroke-width="2"/><text x="32" y="23" text-anchor="middle" font-size="12" font-family="monospace" fill="currentColor">&lt;/&gt;</text><path d="M2 40 L62 40 L56 46 L8 46 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="top:53%; left:3%; font-size:.85rem;">✦</span>
+      <span class="deco deco--ambient" style="top:61%; right:8%; font-family:monospace; font-size:.9rem; opacity:.35;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--star" style="top:69%; left:6%; font-size:.65rem;">✧</span>
+      <span class="deco deco--ambient deco--cloud" style="top:77%; right:16%; width:38px; opacity:.25;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient" style="top:85%; left:4%; font-family:monospace; font-size:1rem; opacity:.3;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="top:93%; right:5%; font-size:.8rem;">✧</span>
+      <span class="deco deco--ambient deco--flower" style="top:5%; left:14%; width:26px; opacity:.3;">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="11" r="6"/><circle cx="20" cy="29" r="6"/><circle cx="11" cy="20" r="6"/><circle cx="29" cy="20" r="6"/><circle cx="20" cy="20" r="3.5" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--flower" style="top:18%; right:9%; width:24px; opacity:.28;">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="11" r="6"/><circle cx="20" cy="29" r="6"/><circle cx="11" cy="20" r="6"/><circle cx="29" cy="20" r="6"/><circle cx="20" cy="20" r="3.5" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--moon" style="top:33%; right:12%; width:32px; opacity:.3;">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 3A14 14 0 1 0 20 29 11 11 0 1 1 20 3Z" fill="currentColor"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="top:41%; left:9%; font-size:.7rem;">✧</span>
+      <span class="deco deco--ambient" style="top:49%; left:16%; font-family:monospace; font-size:.9rem; opacity:.3;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--flower" style="top:65%; right:2%; width:22px; opacity:.28;">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="11" r="6"/><circle cx="20" cy="29" r="6"/><circle cx="11" cy="20" r="6"/><circle cx="29" cy="20" r="6"/><circle cx="20" cy="20" r="3.5" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="top:73%; right:24%; font-size:.75rem;">✦</span>
+      <span class="deco deco--ambient" style="top:81%; left:14%; font-family:monospace; font-size:.7rem; letter-spacing:.1em; opacity:.3;">01001010</span>
+      <span class="deco deco--ambient deco--cloud" style="top:89%; left:22%; width:34px; opacity:.2;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="top:97%; left:9%; font-size:.65rem;">✧</span>
+      <span class="deco deco--ambient" style="top:12%; left:42%; font-family:monospace; font-size:.8rem; opacity:.3;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="top:26%; right:32%; font-size:.7rem;">✦</span>
+      <span class="deco deco--ambient" style="top:58%; left:36%; font-family:monospace; font-size:.65rem; letter-spacing:.1em; opacity:.3;">01001010</span>
+      <span class="deco deco--ambient deco--star" style="top:78%; right:22%; font-size:.75rem;">✧</span>
+      <span class="deco deco--ambient deco--flower" style="top:92%; right:32%; width:22px; opacity:.28;">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="11" r="6"/><circle cx="20" cy="29" r="6"/><circle cx="11" cy="20" r="6"/><circle cx="29" cy="20" r="6"/><circle cx="20" cy="20" r="3.5" fill="currentColor" stroke="none"/></svg>
+      </span>
+    </div>
+
+  <dl class="case-meta" data-reveal>
+    <div><dt data-case-meta-label="role">Role</dt><dd data-project-field="role">[ROLE]</dd></div>
+    <div><dt data-case-meta-label="context">Context</dt><dd data-project-field="context">[CONTEXT]</dd></div>
+    <div><dt data-case-meta-label="year">Year</dt><dd data-project-field="year">[YEAR]</dd></div>
+    <div class="case-meta__tech"><dt data-case-meta-label="technology">Technology</dt><dd><ul class="tech-list" data-project-tech></ul></dd></div>
+  </dl>
+
+  <section class="case-section" data-case-field="overview">
+    <p class="case-section__num">00</p>
+    <h2 data-case-section="overview">Overview</h2>
+    <p data-project-field="caseStudy.overview">[OVERVIEW TEXT]</p>
+  </section>
+  <section class="case-section" data-case-field="problem">
+    <p class="case-section__num">01</p>
+    <h2 data-case-section="problem">The Problem</h2>
+    <p data-project-field="caseStudy.problem">[PROBLEM TEXT]</p>
+  </section>
+  <section class="case-section" data-case-field="approach">
+    <p class="case-section__num">02</p>
+    <h2 data-case-section="approach">The Approach</h2>
+    <p data-project-field="caseStudy.approach">[APPROACH TEXT]</p>
+  </section>
+  <section class="case-section" data-case-field="process">
+    <p class="case-section__num">03</p>
+    <h2 data-case-section="process">Process</h2>
+    <p data-project-field="caseStudy.process">[PROCESS TEXT]</p>
+  </section>
+  <section class="case-section" data-case-field="result">
+    <p class="case-section__num">04</p>
+    <h2 data-case-section="result">Result</h2>
+    <p data-project-field="caseStudy.result">[RESULT TEXT]</p>
+  </section>
+  <section class="case-section" data-case-field="learning">
+    <p class="case-section__num">05</p>
+    <h2 data-case-section="learning">What I Learned</h2>
+    <p data-project-field="caseStudy.learning">[LEARNING TEXT]</p>
+  </section>
+  <section class="case-section" data-project-work-section>
+    <p class="case-section__num">06</p>
+    <h2 data-case-section="workLink">Project Link</h2>
+    <div class="case-section__links" data-project-work-links></div>
+  </section>
+  <section class="case-section" data-project-certificate-section>
+    <p class="case-section__num">07</p>
+    <h2 data-case-section="certificate">Certificate</h2>
+    <div class="case-section__certificates" data-project-certificate>[CERTIFICATE IMAGE]</div>
+  </section>
+
+  <!-- activity photos — unlimited entries (project.activityPhotos), always
+       rendered as a continuously auto-scrolling strip rather than a
+       crossfade carousel; see renderProjectPage in script.js, which
+       duplicates the list back-to-back so translateX(-50%) loops
+       seamlessly no matter how many photos there are. -->
+  <div class="case-activity" data-reveal data-project-activity>
+    <h2 class="case-activity__heading" data-case-section="activity">Activity Photos</h2>
+    <div class="case-activity__track" data-project-activity-track></div>
+  </div>
+
+  <nav class="case-nav" aria-label="Project navigation" data-reveal>
+    <a data-project-category-link>← Back to category</a>
+    <a data-project-next-link>Next project →</a>
+  </nav>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

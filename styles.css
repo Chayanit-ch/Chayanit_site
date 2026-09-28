@@ -1,0 +1,2265 @@
+/* ==========================================================================
+   0. RESET & BASE
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: 'Noto Sans Thai', 'Noto Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--scene-fg);
+  /* --scene-bg only exists inside each .scene--X block, never on body
+     itself — without this fallback the property is invalid here and
+     resolves to transparent, so any sliver of unpainted edge (e.g. a
+     browser's overscroll/rubber-band area) shows whatever blank canvas
+     color the browser defaults to instead of the site's own sky. */
+  background: var(--scene-bg, var(--sky-mid));
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+h1, h2, h3, p, ul, dl, dd { margin: 0; padding: 0; }
+ul { list-style: none; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 999;
+  background: #fff; color: #111; padding: .75rem 1rem; border-radius: 0 0 8px 0;
+}
+.skip-link:focus { left: 0; }
+
+/* ==========================================================================
+   1. DESIGN TOKENS
+   ========================================================================== */
+:root {
+  --font-display: 'Georgia', 'Noto Serif Thai', 'Noto Sans Thai', serif;
+
+  --ink-900: #1f2a3c;
+  --ink-050: #fffdf7;
+
+  --sky-deep:  #2f6fb0;
+  --sky-mid:   #4a90d9;
+  --sky-light: #bfe0f7;
+  --cream:     #fff8ea;
+  --cream-deep:#f1e6c9;
+  --sand:      #efe6cb;
+  --moss-light:#d7e0ab;
+  --moss:      #c2cb93;
+  --moss-deep: #8fa15f;
+  /* darkened from #f08462 — that lighter coral reads fine on dark
+     backgrounds (Contact's near-black) but fails contrast everywhere it
+     sits on a light one (cream/sand/near-white card): Intro's eyebrow,
+     Gallery's eyebrow, About's eyebrows, the Learned-card quote/tag on its
+     near-white card, "Currently" labels. Checked against WCAG AA (4.5:1)
+     on both --cream and --sand; nothing currently uses --coral against a
+     dark surface, so darkening it has no downside there. */
+  --coral:     #a83e18;
+  --near-black:#151310;
+
+  --pin-p: 0;
+  --p: 0;
+
+  --shadow-soft: 0 20px 60px -20px rgba(31, 42, 60, 0.35);
+  --radius-lg: 28px;
+  --radius-md: 18px;
+
+  /* ---- Global motion tokens — one shared vocabulary for every page.
+     Fast = hover/micro-interaction. Normal = image/card settle. Slow =
+     section reveal. Continuous scroll-scrubbed transforms (work-object,
+     featured-work-card, the --p/--pin-p driven Home scenes) intentionally
+     stay outside this system — they use a fast linear transition to smooth
+     per-frame updates, which is a different job than a one-time reveal. ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 200ms;
+  --duration-normal: 500ms;
+  --duration-slow: 800ms;
+
+  --nav-height: 88px;
+
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   2. TYPE UTILITIES
+   ========================================================================== */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: .5em;
+  font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--scene-accent);
+  font-weight: 600;
+}
+.eyebrow::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--scene-accent); display: inline-block;
+}
+.section-heading {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1.1;
+  margin-top: .4em;
+  color: var(--scene-fg);
+  max-width: 16ch;
+}
+.scribble {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: .95rem;
+  color: var(--scene-muted);
+  opacity: .92;
+}
+
+/* ==========================================================================
+   3. LAYOUT PRIMITIVES — scene / layer / pin
+   ========================================================================== */
+main { position: relative; z-index: 1; scroll-margin-top: var(--nav-height); transition: opacity var(--duration-fast) var(--ease-smooth); }
+
+.scene {
+  position: relative;
+  background: var(--scene-bg);
+  color: var(--scene-fg);
+}
+
+.scene__inner {
+  position: relative;
+  z-index: 3;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(4rem, 10vw, 7rem) clamp(1.5rem, 5vw, 3rem);
+}
+.scene__inner--tight { padding-bottom: clamp(1rem, 3vw, 2rem); }
+
+.scene--pin { height: 100vh; }
+.scene__pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.layer { position: absolute; inset: 0; }
+.layer--content { position: relative; z-index: 3; height: 100%; }
+.bg-fill { width: 100%; height: 100%; object-fit: cover; }
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+[data-reveal].is-in { opacity: 1; transform: none; }
+
+/* image-flavoured reveal: same system, adds a subtle scale-in on top of the
+   shared translateY (used by project gallery images) */
+.reveal-image[data-reveal] { transform: translateY(20px) scale(.97); }
+.reveal-image[data-reveal].is-in { transform: none; }
+
+.ground { position: absolute; left: 0; right: 0; bottom: -2px; z-index: 2; line-height: 0; }
+
+/* ==========================================================================
+   4. NAV (shared by every page)
+   ========================================================================== */
+.nav {
+  position: fixed; top: 1.25rem; left: 0; right: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 clamp(1rem, 4vw, 2.5rem);
+  pointer-events: none;
+}
+.nav > * { pointer-events: auto; }
+
+.nav__location {
+  font-size: .75rem; letter-spacing: .08em; text-transform: uppercase;
+  color: #fff;
+  display: flex; align-items: center; gap: .4em;
+  background: rgba(0,0,0,.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding: .5rem .9rem;
+}
+
+.nav__pill {
+  display: flex; align-items: center; gap: 1.5rem;
+  /* was rgba(255,255,255,.16) — nav is fixed/overlaid on every scene, and
+     over the lighter ones (cream Intro, sand Gallery) that was thin enough
+     for the white nav__link text underneath to nearly disappear into the
+     page behind it. A touch more backdrop + the text-shadow below fixes
+     that everywhere at once, without a scroll-position-dependent "nav
+     inverts on light sections" system. */
+  background: rgba(20, 20, 25, .22);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 999px;
+  padding: .5rem 1.5rem .5rem .5rem;
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+.nav__avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,.6); display: block; transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-smooth); }
+.nav__avatar:hover { transform: scale(1.08); border-color: #ffd76a; }
+.nav__links { display: flex; align-items: center; gap: .4rem; }
+/* was plain text with only an opacity/underline change — a real pill
+   (background + lift) on hover, and a solid gold "current page" fill
+   instead of just an underline, so both states read as clearly clickable
+   the way the rest of the site's capsule buttons/chips already do. */
+.nav__link {
+  font-size: .98rem; color: #fff; opacity: .85; text-shadow: 0 1px 3px rgba(0,0,0,.35);
+  padding: .4rem .85rem; border-radius: 999px;
+  transition: opacity var(--duration-fast) var(--ease-smooth), background var(--duration-fast) var(--ease-smooth), color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out);
+}
+.nav__link:hover { opacity: 1; background: rgba(255,255,255,.16); transform: translateY(-2px); }
+.nav__link:active { transform: translateY(0); }
+.nav__link.is-active { opacity: 1; background: #ffd76a; color: var(--ink-900); text-shadow: none; font-weight: 700; }
+.nav__link.is-active:hover { background: #ffd76a; transform: none; }
+
+/* margin-left: auto (not just justify-content: space-between on .nav)
+   because .nav__location — the other flex item balancing this one to the
+   right — disappears at the mobile breakpoint below; without this, a
+   lone remaining flex item collapses to the flex-start (left) edge. */
+.nav__actions { display: flex; align-items: center; gap: .5rem; margin-left: auto; }
+
+/* hamburger toggle — hidden on desktop, where .nav__links shows inline;
+   swapped for it below the mobile breakpoint. Three bars morph into an
+   "X" via .nav.is-menu-open rather than swapping icons, so the tap
+   target never jumps. */
+.nav__burger {
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  width: 34px; height: 34px; padding: 0; border: none; background: none; cursor: pointer;
+  flex-shrink: 0;
+}
+.nav__burger span {
+  display: block; width: 20px; height: 2px; border-radius: 2px;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  transition: transform var(--duration-fast) var(--ease-smooth), opacity var(--duration-fast) var(--ease-smooth);
+}
+.nav.is-menu-open .nav__burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav.is-menu-open .nav__burger span:nth-child(2) { opacity: 0; }
+.nav.is-menu-open .nav__burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* was a pale rgba(255,255,255,.2) fill — white text on a near-white
+   translucent chip was too low-contrast to read over the lighter scenes
+   (basically the same problem .nav__pill's own comment above describes,
+   just never fixed here). Matched to .nav__location's dark-chip treatment
+   instead, so every standalone pill in the nav (location, links, lang)
+   now shares one consistent dark-glass look. */
+.nav__lang {
+  height: 40px; padding: 0 .9rem; border-radius: 999px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.35);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .03em;
+  transition: background var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out);
+}
+.nav__lang:hover { background: rgba(0,0,0,.4); transform: translateY(-1px); }
+.nav__lang:active { transform: translateY(0); }
+
+@media (max-width: 720px) {
+  .nav__pill { gap: .6rem; padding: .4rem .6rem; }
+  .nav__location { display: none; }
+  .nav__lang { height: 34px; padding: 0 .7rem; font-size: .72rem; }
+
+  /* .nav__pill's desktop centering trick (position: absolute + transform)
+     — and its backdrop-filter, which does the same thing even once the
+     transform above is gone — each independently create a new containing
+     block for position:fixed descendants. Left in place, .nav__links
+     below would resolve its "left: 1rem; right: 1rem" against this
+     ~90px-wide pill instead of the real viewport, collapsing to a tiny
+     dropdown. Stripping all three lets .nav__links' fixed positioning
+     resolve against the viewport again. */
+  .nav__pill { position: static; left: auto; transform: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+  /* the 4 inline links only ever fit a desktop-width pill — below this
+     breakpoint they move into a full-width dropdown panel opened by
+     .nav__burger, instead of shrinking until they wrap and overlap. */
+  .nav__burger { display: flex; }
+  .nav__links {
+    display: flex; flex-direction: column; gap: .35rem;
+    position: fixed; top: calc(1.25rem + 56px); left: 1rem; right: 1rem;
+    background: rgba(20, 20, 25, .94);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 1.25rem;
+    padding: .75rem;
+    box-shadow: 0 24px 48px -12px rgba(0,0,0,.55);
+    opacity: 0; visibility: hidden; transform: translateY(-8px);
+    transition: opacity var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-smooth), visibility var(--duration-fast);
+  }
+  .nav.is-menu-open .nav__links { opacity: 1; visibility: visible; transform: translateY(0); }
+  .nav__link { font-size: 1.05rem; text-align: center; padding: .8rem 1rem; }
+}
+/* menu open: lock page scroll behind the panel so it reads as a modal,
+   not content that happens to float over the page. */
+body.nav-menu-open { overflow: hidden; }
+
+/* ==========================================================================
+   4b. SCROLL PROGRESS — small fixed "rocket" marker that rides a track on
+   the side of the screen, tracking overall page scroll (0 at top, 1 at the
+   footer). Reuses the existing scroll engine's single rAF loop (see
+   initScrollEngine in script.js, which now also writes --scroll-progress on
+   <html>) — no second scroll listener. Home only.
+   ========================================================================== */
+.scroll-progress {
+  position: fixed; right: clamp(1rem, 3vw, 1.75rem); top: 16vh; bottom: 16vh;
+  width: 3px; z-index: 40; pointer-events: none;
+}
+.scroll-progress__track {
+  position: relative; width: 100%; height: 100%;
+  background: rgba(255,255,255,.3); border-radius: 3px;
+}
+.scroll-progress__fill {
+  position: absolute; top: 0; left: 0; width: 100%;
+  height: calc(var(--scroll-progress, 0) * 100%);
+  background: #ffd76a; border-radius: 3px;
+}
+.scroll-progress__marker {
+  position: absolute; left: 50%; top: calc(var(--scroll-progress, 0) * 100%);
+  transform: translate(-50%, -55%);
+  width: 22px; color: #ffd76a;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,.3));
+}
+.scroll-progress__marker svg { display: block; width: 100%; height: auto; }
+
+@media (max-width: 900px) {
+  .scroll-progress { display: none; }
+}
+
+/* ==========================================================================
+   5. SCENE — HERO (SKY) — Home only
+   ========================================================================== */
+/* height drives how long the pin stays stuck (pinRange = height - 100vh —
+   see initScrollEngine in script.js), i.e. how much scroll the cover-rise
+   animation gets. 175vh gave it 75vh of scroll, which — combined with the
+   100vh .scene__pin then still has to slide through normally once unpinned,
+   unavoidable for any 100vh-tall sticky element — left a long stretch of
+   already-solid-cream scrolling by before Intro's heading appeared. 130vh
+   keeps a still-comfortable 30vh for the rise to read smoothly while
+   cutting that total wait by 45vh. */
+.scene--hero { --scene-bg: var(--sky-mid); --scene-fg: #fffdf7; --scene-accent: #ffd76a; --scene-muted: #d9ecfb; height: 130vh; }
+
+.hero__deco { z-index: 2; color: rgba(255,255,255,.75); }
+.deco {
+  position: absolute; pointer-events: auto;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.deco:hover { transform: scale(1.15) rotate(-4deg); }
+.deco--icon-code { top: 18%; left: 6%; font-family: monospace; font-size: 1.6rem; }
+.deco--icon-window { top: 62%; right: 8%; width: 70px; }
+.deco--icon-laptop { top: 78%; right: 6%; width: 64px; }
+.deco--sun {
+  top: 12%; right: 12%; width: 90px; height: 90px; border-radius: 50%;
+  background: repeating-linear-gradient(45deg, #ffd76a 0 10px, transparent 10px 20px);
+  opacity: .85;
+}
+.deco--sun:hover { transform: scale(1.08) rotate(12deg); }
+.deco--binary { top: 46%; right: 20%; font-family: monospace; font-size: .8rem; letter-spacing: .1em; opacity: .8; }
+
+/* ---- ambient scene decoration — same "small line-art icon scattered in
+   the margins" idea as .hero__deco above, reused in the other scenes whose
+   side margins otherwise sit empty (Selected Work, Gallery, Contact). Not
+   interactive (no hover flourish, no pointer-events) since these sit in
+   plain content flow rather than Hero's own isolated decorative layer, and
+   scattered near real interactive content (cards, the CTA) — a stray hover
+   scale here would read as a UI bug, not a flourish. Each scene sets its
+   own `color` on the wrapper (host section) to suit its own background;
+   icons themselves just use currentColor/opacity. */
+.scene__deco { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.scene__deco .deco,
+.deco--ambient { pointer-events: none; }
+.deco--ambient-icon { width: 48px; opacity: .35; }
+.deco--star { font-size: 1.1rem; opacity: .55; }
+.deco--flower { width: 42px; opacity: .4; }
+.deco--moon { width: 40px; opacity: .5; }
+.deco--cloud { width: 60px; opacity: .35; }
+
+.hero__content {
+  display: flex; align-items: flex-end; gap: clamp(1rem, 4vw, 3rem);
+  max-width: 1320px; margin: 0 auto; width: 100%;
+  padding: 0 clamp(1.25rem, 5vw, 3rem) 20vh;
+  flex: 1;
+}
+.hero__portrait {
+  /* negative margin-bottom pulls it down past .hero__content's own
+     flex-end baseline (independent of .hero__text, which centers itself
+     via align-self) so it tucks slightly under the ground-clouds wave
+     (z-index 4, above this layer's z-index 3) instead of just touching it. */
+  margin: 0 0 -9vh; flex-shrink: 0; width: clamp(200px, 27vw, 410px);
+  /* driven by --pin-p (0 at top of pin, 1 right before it releases) rather
+     than the pass-through --p, so the shrink finishes exactly as the pin
+     hands off to .scene--cloud below — not early/late against it. */
+  transform:
+    translate(var(--mx, 0px), calc(var(--pin-p, 0) * -30px + var(--my, 0px)))
+    scale(calc(1 - var(--pin-p, 0) * 0.35));
+  transform-origin: center bottom;
+  /* soft ambient shadow under the whole cutout — separate from the sticker
+     outline itself (see .hero__portrait img below), so scaling/hover never
+     has to recompute the outline's own filter. */
+  filter: drop-shadow(0 30px 40px rgba(0,0,0,.25));
+}
+/* the reference mockup shows a crisp white "sticker cutout" outline around
+   the portrait — a plain CSS drop-shadow couldn't do this (tried before):
+   this source photo has a soft/anti-aliased alpha edge, not a hard cutout,
+   so the shadow just bled into a large soft halo instead of a thin line.
+   #hero-sticker-outline (defined inline in index.html) sidesteps that by
+   working from the ALPHA channel directly — dilate it into a solid,
+   uniformly-thick shape first, flood that white, then draw the original
+   photo back on top — so the outline is always a clean fixed width
+   regardless of how soft the source edge is. */
+.hero__portrait img {
+  width: 100%;
+  filter: url(#hero-sticker-outline);
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+.hero__portrait:hover img { transform: scale(1.03); }
+
+.hero__text {
+  padding-bottom: 1.5vh;
+  align-self: center;
+  margin-top: 7vh;
+  transform: scale(calc(1 - var(--pin-p, 0) * 0.35));
+  transform-origin: left center;
+}
+.hero__name-wrap { position: relative; display: inline-block; }
+
+/* a solid background-color on this container PLUS same-color blobs on top
+   of it (an earlier version of this rule) rendered as an invisible no-op —
+   blob areas and gap areas both ended up the same #fff8ea, so the whole
+   thing just painted as one flat rectangle with a hard top edge (confirmed
+   by temporarily filling the blobs solid red: the shape was fine, the
+   color match was the bug). The fix, proven in .cloud-layer--front below:
+   ONE background-image list with the blobs AND the solid "floor" fill as
+   a trailing linear-gradient layer, no separate background-color. Gaps
+   between blobs are genuinely transparent, so the sky shows through them;
+   only the linear-gradient layer (starting past the blobs' reach) is
+   solid. Blob Y-offsets are fixed px, not %, so they stay pinned to the
+   top edge and never stretch as --pin-p grows the container's height. */
+.hero__ground-clouds {
+  position: absolute; left: -6%; right: -6%; bottom: -1%; z-index: 4;
+  /* was * 55vh: grew almost to full viewport height, leaving a long static
+     all-cream stretch at the end of the pin before Intro's heading could
+     appear. Shorter growth still fully covers the portrait/name (they've
+     already shrunk toward the vertical center by then) without the dead
+     scroll distance. */
+  height: calc(20vh + var(--pin-p, 0) * 25vh);
+  overflow: hidden;
+  pointer-events: none;
+  /* fixed cream, not var(--cream): the Hero's sky illustration is a static
+     daytime image that never re-themes (see .layer--bg above), so a
+     theme-swapping token here would turn the clouds near-black in dark mode
+     against a background that stayed blue.
+     A single continuous wave (the same path as the now-unused
+     .hero__cloud-main markup below, exported as a standalone SVG) replaces
+     the old cluster of separate radial-gradient "blobs" — those read as
+     disconnected floating ovals instead of one cloud edge. The wave layer
+     is a fixed pixel size (not %), so — same reasoning as the old blobs —
+     it never stretches as --pin-p grows the container's height; the plain
+     linear-gradient beneath it is what actually grows to fill the rest. */
+  background-image:
+    url("assets/hero-cloud-wave.svg"),
+    linear-gradient(to bottom, transparent 0, transparent 65px, #fff8ea 65px, #fff8ea 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100% 90px, 100% 100%;
+  background-position: top, top;
+}
+
+@media (max-width: 780px) {
+  .hero__ground-clouds { height: calc(16vh + var(--pin-p, 0) * 20vh); }
+}
+.hero__name {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(2.6rem, 7vw, 5.2rem); line-height: 1.35;
+  letter-spacing: .03em;
+  text-shadow: 0 2px 24px rgba(0,0,0,.2);
+  white-space: pre-line;
+  margin-top: 9rem;
+}
+.hero__name-underline {
+  display: block; width: 70%; max-width: 320px; height: .5em;
+  margin-top: .1em; color: var(--scene-accent); opacity: .9;
+}
+.hero__sparkle {
+  position: absolute; color: var(--scene-accent);
+  font-size: 1.4rem; line-height: 1;
+}
+.hero__sparkle--1 { top: -.3em; right: 18%; }
+.hero__sparkle--2 { bottom: 1.6em; right: -.6em; font-size: 1.1rem; }
+
+.hero__role {
+  margin-top: .9rem;
+  font-family: var(--font-display); font-style: italic;
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  color: #fffdf7;
+  text-shadow: 0 2px 12px rgba(0,0,0,.25);
+}
+/* dark translucent chips, not a plain text list — same reasoning as
+   .nav__lang above: this sits directly on the sky illustration, which
+   ranges from pale cloud-white to mid blue, so a fixed light text color
+   alone isn't reliably readable across it. */
+.hero__tags {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  list-style: none; margin: 1.1rem 0 0; padding: 0;
+}
+.hero__tags li {
+  font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+  color: #fffdf7;
+  background: rgba(0,0,0,.28);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 999px;
+  padding: .4rem .9rem;
+}
+
+/* groups a word's letters (see renderHeroName in script.js) so a line can
+   still wrap BETWEEN words but never splits one mid-word onto its own
+   trailing line. */
+.hero__word { display: inline-block; white-space: nowrap; }
+.hero__letter {
+  display: inline-block;
+  transition: transform var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.hero__letter:hover { transform: scale(1.18); color: var(--scene-accent); }
+
+/* oversized (112% tall, centered via -6%/-6% inset override) so the
+   translateY parallax below never pulls the image's own edge away from
+   the container's edge — .layer's base inset:0 sizes this to exactly
+   match the container, so at load (--p is already ~0.3-0.5 here, not 0,
+   since a tall pinned-first section starts partway through its own
+   pass-through progress) the 6% downward shift was uncovering a sliver of
+   the container's flat --scene-bg at the top, reading as a hard-edged
+   solid-color band sitting above the textured sky image. */
+.scene--hero .layer--bg { top: -6%; bottom: -6%; transform: translateY(calc(var(--p) * 6%)); }
+/* anchor the crop to the top of the source art (not the default center)
+   so cover-cropping trims slack from the bottom instead of eating into the
+   sky/sun/deco already sitting near the top of the illustration. */
+.scene--hero .layer--bg img { object-position: top; }
+/* opacity is driven by --pin-p (0 at the very top of the pin range, 1 once
+   the pin is about to release), not the generic pass-through --p — --p is
+   already partway along at page load for a tall pinned-first section like
+   this one, which was quietly washing out the Hero's color on first paint. */
+/* fade kept subtle (max ~25%, not the old 70%) — combined with the scale
+   shrink on the portrait/text below, a heavier fade read as the photo going
+   washed-out/translucent rather than "shrinking away"; the cloud curtain
+   rising in .scene--cloud is what actually covers the hand-off, not this
+   opacity. */
+.scene--hero .hero__content { transform: translateY(calc(var(--pin-p, 0) * -70px)); opacity: calc(1 - var(--pin-p, 0) * .25); }
+
+.scene--hero .hero__deco {
+  transform: translate(var(--mx, 0px), calc(var(--p) * -40px + var(--my, 0px)));
+  opacity: calc(1 - var(--pin-p, 0));
+}
+
+/* ---- Hero on-load entrance — opacity-only keyframes on children of the
+   scroll-driven layers above, so they never fight the --p-linked transform/
+   opacity rules on .hero__content/.hero__deco/.hero__portrait themselves.
+   Sequenced background -> decorative layer -> portrait -> name -> role -> tags. */
+@keyframes hero-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.scene--hero .layer--bg,
+.hero__deco .deco,
+.hero__portrait,
+.hero__name,
+.hero__name-underline,
+.hero__sparkle,
+.hero__role,
+.hero__tags {
+  animation: hero-fade-in var(--duration-slow) var(--ease-out) both;
+}
+.scene--hero .layer--bg { animation-delay: 0ms; }
+.hero__deco .deco { animation-delay: 150ms; }
+.hero__portrait { animation-delay: 300ms; }
+.hero__name { animation-delay: 450ms; }
+.hero__name-underline { animation-delay: 600ms; }
+.hero__sparkle { animation-delay: 700ms; }
+.hero__role { animation-delay: 800ms; }
+.hero__tags { animation-delay: 900ms; }
+
+@media (max-width: 780px) {
+  .scene--hero { height: 120vh; }
+  .hero__content { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1.5rem; padding-bottom: 0; height: 100%; }
+  .hero__portrait { width: 46vw; }
+  /* .hero__name's 9rem margin-top only exists to vertically align the name
+     next to the (taller) portrait in the desktop side-by-side layout —
+     once .hero__content stacks into a column above, that same margin is
+     pure dead space between the portrait and the name (the flex gap
+     already separates them), so it's zeroed out here. */
+  .hero__name { margin-top: 0; }
+  /* the loose monospace/bracket "code" decorations (see .hero__deco's own
+     markup — plain <span class="deco deco--ambient"> text, not one of the
+     icon/star/cloud variants) are positioned with desktop-tuned %
+     offsets that land on top of the name/role text once the layout
+     stacks into a single column; hiding them (stars/clouds/flowers stay)
+     is simpler and more robust than re-deriving new per-span positions
+     for a completely different layout shape. */
+  .hero__deco .deco:not(.deco--star):not(.deco--cloud):not(.deco--flower):not(.deco--moon) { display: none; }
+}
+
+/* ==========================================================================
+   6. SCENE — CLOUD TRANSITION — Home only
+   Not pinned: a sticky scene here would force a mandatory extra viewport of
+   "dead" exit-scroll once the curtain finished rising (pin-p clamps at 1
+   while the section still has to scroll out). Driving the curtain off the
+   plain pass-through --p instead means it keeps animating for the section's
+   entire transit, so there is no static gap before Intro.
+   ========================================================================== */
+.scene--cloud {
+  /* flat cream, not a sky-mid -> cream gradient: by the time the Hero pin
+     releases, .hero__ground-clouds has already grown to solid cream and
+     filled the viewport, so re-introducing blue here just makes the screen
+     flash back to sky and re-fade to cream a second time — a dead scroll
+     stretch with no real content change, before "แนะนำตัว" can appear. */
+  --scene-bg: var(--cream);
+  background: var(--scene-bg);
+  /* short on purpose: this is now just a thin textured bridge (see
+     .cloud-layer below), not the section that carries the sky->cream color
+     change anymore — that already happened in the Hero. */
+  height: 11vh;
+  /* needs its own clip (the blanket overflow:hidden that used to live on
+     the shared .scene rule was removed — it was breaking position:sticky
+     on .scene__pin in the pinned scenes; .scene--cloud isn't pinned, so it
+     needs this locally instead). */
+  overflow: hidden;
+}
+
+/* ---- three-layer organic cloud bridge, back -> mid -> front ----
+   Each layer is a handful of hand-placed elliptical radial-gradient blobs
+   (different sizes/positions per blob, not a repeating tile) so the
+   silhouette reads as irregular puffs rather than a stamped pattern. The
+   section background is now flat --cream (see .scene--cloud above), so
+   every blob here uses --cream-deep instead of --cream/--sky-light — a
+   cream blob on a cream background would be invisible (the same
+   same-color-as-backdrop mistake fixed earlier in the Hero clouds), and
+   --sky-light would reintroduce the blue flash this whole rework removes.
+   Depth is sold with height (back tallest, front shortest) and opacity
+   (back faintest, front strongest) instead of a color shift now. Movement
+   is intentionally tiny (8/12/16px) — ambient parallax, not a curtain. */
+.cloud-layer { position: absolute; left: -5%; right: -5%; bottom: 0; pointer-events: none; }
+
+.cloud-layer--back {
+  height: 7.5vh;
+  opacity: .35;
+  background-image:
+    radial-gradient(90px 55px at 6% 22px,  var(--cream-deep) 55%, transparent 72%),
+    radial-gradient(130px 72px at 30% 4px,  var(--cream-deep) 55%, transparent 72%),
+    radial-gradient(100px 60px at 56% 18px, var(--cream-deep) 55%, transparent 72%),
+    radial-gradient(150px 80px at 82% 0px,  var(--cream-deep) 55%, transparent 72%),
+    radial-gradient(85px 50px at 100% 20px, var(--cream-deep) 55%, transparent 72%);
+  transform: translateY(calc(var(--p) * -8px));
+}
+
+.cloud-layer--mid {
+  height: 6vh;
+  opacity: .45;
+  background-image:
+    radial-gradient(70px 42px at 16% 16px, var(--cream-deep) 60%, transparent 76%),
+    radial-gradient(100px 55px at 42% 0px, var(--cream-deep) 60%, transparent 76%),
+    radial-gradient(78px 46px at 68% 12px, var(--cream-deep) 60%, transparent 76%),
+    radial-gradient(60px 38px at 92% -4px, var(--cream-deep) 60%, transparent 76%);
+  transform: translateY(calc(var(--p) * -12px));
+}
+
+.cloud-layer--front {
+  height: 4.5vh;
+  opacity: .55;
+  background-image:
+    radial-gradient(55px 32px at 4% 8px,  var(--cream-deep) 62%, transparent 78%),
+    radial-gradient(78px 40px at 24% -4px, var(--cream-deep) 62%, transparent 78%),
+    radial-gradient(65px 36px at 48% 6px,  var(--cream-deep) 62%, transparent 78%),
+    radial-gradient(88px 44px at 72% -6px, var(--cream-deep) 62%, transparent 78%),
+    radial-gradient(58px 34px at 96% 4px,  var(--cream-deep) 62%, transparent 78%);
+  transform: translateY(calc(var(--p) * -16px));
+}
+
+@media (max-width: 780px) {
+  .scene--cloud { height: 14vh; }
+  .cloud-layer--back { height: 9vh; }
+  .cloud-layer--mid { height: 7.5vh; }
+  .cloud-layer--front { height: 5.5vh; }
+}
+
+/* ==========================================================================
+   7. SCENE — INTRO — Home only
+   ========================================================================== */
+/* --scene-muted darkened from #8a7f63 — that read too close to --cream for
+   the side-note scribble (~2.6:1). Dark mode gets its own lighter value
+   below since darkening it further there would have cut contrast against
+   the near-black background instead of helping it. */
+.scene--intro { --scene-bg: var(--cream); --scene-fg: var(--ink-900); --scene-accent: var(--coral); --scene-muted: #655c42; padding-bottom: 14vh; }
+.scene--intro .scene__inner { max-width: 780px; text-align: left; padding-top: clamp(3rem, 7vw, 3rem); }
+/* the real copy uses \n line breaks (short poem-like lines, a quoted
+   line in the middle) — needs pre-line to actually show as separate
+   lines instead of collapsing to one run-on sentence like plain text
+   normally does; widened a little so those lines don't immediately
+   wrap a second time on top of the intentional breaks. */
+.intro__body { margin-top: 1.5rem; font-size: clamp(1rem, 1.6vw, 1.2rem); line-height: 1.7; max-width: 52ch; color: var(--scene-fg); opacity: .85; white-space: pre-line; }
+.scribble--note { display: block; margin-top: 2.5rem; }
+.ground--about { height: 20vh; min-height: 140px; z-index: 1; opacity: .9; }
+.ground--about img { object-fit: cover; object-position: bottom; height: 100%; }
+
+/* ==========================================================================
+   8. WORK — editorial project archive. Image is the primary object; size,
+   alignment and rhythm vary per item instead of a uniform card grid. Reused
+   by Home (Selected Work, featured only), Work index (all) and category
+   pages (filtered). `.scene--work` supplies the backdrop.
+   ========================================================================== */
+/* ends on --moss now (was a hard stop at --sky-mid) so the handoff into
+   .scene--learned's moss-green background is a blend, not a sudden color
+   cut that reads as green "popping up" over the blue mid-scroll. */
+.scene--work { --scene-bg: linear-gradient(to bottom, var(--cream) 0%, var(--sky-light) 16%, var(--sky-mid) 70%, var(--moss) 100%); background: var(--scene-bg); --scene-fg: #fffdf7; --scene-accent: #ffe6a8; --scene-muted: #dcecfa; padding-bottom: 4vh; }
+/* Home only (see the .scene--pin class on #scene-work in index.html; work.
+   html/category pages never carry it, so this — like the stacked-card rule
+   it enables further down — never applies there). Pins the section the
+   same way .scene--learned does: while pinned, scrolling drives --pin-p
+   instead of moving the page, so the cards' stack-to-grid unfold (which
+   reads .scene__inner is at a fixed 0->1 pace) finishes and is actually
+   readable before the section is allowed to scroll away — previously each
+   card unfolded off its own scroll-linked --p, which raced ahead of where
+   the page happened to be by the time it finished, leaving overlapping
+   unreadable text mid-scroll. 45vh of pin range is enough for the unfold
+   to read as deliberate without adding a long stuck stretch afterward. */
+.scene--work.scene--pin { height: auto; }
+.scene--work.scene--pin .scene__pin { padding-bottom: 4vh; }
+.scene--work.scene--pin .scene__pin-spacer { height: 45vh; }
+/* --scene-fg/--scene-accent above are near-white — fine for the cards
+   further down (they sit on their own opaque dark backdrop, independent of
+   whatever's behind), but on Home the eyebrow+heading sit directly on the
+   gradient itself, right at its light cream/sky-light top (measured ~1:1
+   contrast — essentially invisible). Scoped to just .scene__inner so it
+   doesn't touch the cards/"view all" link deeper in the section, which sit
+   on the gradient's darker sky-mid/moss half where the light colors do
+   work — and explicitly excludes .scene--work-standalone (work.html +
+   category pages, which reuse .scene--work for the same gradient tokens
+   but override --scene-bg to a flat dark blue the whole way down, where
+   the original near-white stays correct throughout). */
+.scene--work:not(.scene--work-standalone) .scene__inner { --scene-fg: var(--ink-900); --scene-accent: var(--coral); }
+
+/* Work index / category pages get their own illustrated background
+   (BG_WORKKK.png) instead of the blue gradient. The art itself is almost
+   entirely a flat #fbf8ee fill with a decorative horizon band only at the
+   very bottom of its own (tall, 1024x1536) canvas — sized to 100% width /
+   auto height and anchored to the bottom, so that horizon always sits at
+   the actual bottom of the page rather than at a fixed pixel offset.
+   background-color is the SAME #fbf8ee as the art's own fill, as a real
+   functional fallback (not just a defensive one): pages with more
+   projects than the scaled image is tall (i.e. most category pages, since
+   projects keep adding height but the image doesn't) show plain #fbf8ee
+   above the image with zero visible seam, because it's the exact same
+   color the image already fades into — tested by filling this page with
+   many more project rows than fit in one screen and confirming no seam. */
+.scene--work-standalone {
+  --scene-bg: #fbf8ee;
+  --scene-fg: var(--ink-900);
+  --scene-accent: var(--coral);
+  --scene-muted: #655c42;
+  background-color: #fbf8ee;
+  background-image: url("assets/BG_WORKKK.png");
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: 100% auto;
+}
+
+.page-work__intro { margin-top: 1.25rem; max-width: 60ch; font-size: 1.15rem; line-height: 1.6; color: var(--scene-muted); }
+.category-count { margin-top: .6rem; font-size: .85rem; color: var(--scene-muted); opacity: .75; }
+
+.category-list { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
+/* dark-on-light now — .scene--work-standalone (the only place these
+   appear) switched from a dark blue gradient to BG_WORKKK.png's pale
+   cream, so the old white-based chip never had a light-on-light problem
+   before; kept the same shape/weight, just flipped the palette. */
+.category-chip {
+  border: 1px solid rgba(31,42,60,.3); border-radius: 999px;
+  padding: .55rem 1.3rem; font-size: .95rem; color: var(--ink-900); opacity: .8;
+  display: inline-block;
+  transition: opacity var(--duration-fast) var(--ease-smooth),
+    background var(--duration-fast) var(--ease-smooth),
+    border-color var(--duration-fast) var(--ease-smooth),
+    transform var(--duration-fast) var(--ease-out);
+}
+.category-chip:hover { opacity: 1; background: rgba(31,42,60,.06); border-color: rgba(31,42,60,.5); transform: translateY(-2px); }
+.category-chip:active { transform: translateY(0); }
+/* filled solid (not just a border) so the current filter reads at a
+   glance, same "the active one owns a real surface" idea as the featured-
+   work cards' opaque backdrop elsewhere on the site. */
+/* text is a fixed cream, not var(--ink-900) — --scene-accent here resolves
+   to --coral (a fairly dark, saturated red-orange), and dark ink text on
+   top of that measured ~2.3:1, well under AA. Cream reads clearly on it
+   (~5.9:1) the same way it does everywhere else --coral is used as a fill
+   rather than a text color on the site. */
+.category-chip.is-active { opacity: 1; background: var(--scene-accent, #ffe6a8); border-color: transparent; color: #fff8ea; font-weight: 600; }
+.category-chip.is-active:hover { transform: none; background: var(--scene-accent, #ffe6a8); }
+
+.work__field {
+  position: relative;
+  max-width: 1220px; margin: 0 auto;
+  padding: 6vh clamp(1.25rem, 5vw, 3rem) 16vh;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4rem, 9vw, 7rem);
+}
+.work__empty { text-align: center; padding: 4rem 0; color: var(--scene-muted); font-size: 1.05rem; }
+
+/* editorial row per project — image beside its details, not stacked —
+   alternating which side the image sits on every other row (zigzag) via
+   `order`, not a rebuilt grid-template per nth-group, so it scales to any
+   number of projects instead of a fixed cycle. */
+.work-object {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: center;
+  /* scale riding along with the existing rise+fade gives the reveal a
+     touch more depth (settling into place, not just sliding/fading) —
+     kept small (.97->1) so it reads as a polish pass, not a bounce. */
+  transform: translateY(calc((1 - var(--p, 0)) * 50px)) scale(calc(0.97 + var(--p, 0) * 0.03));
+  opacity: calc(0.3 + var(--p, 0) * .7);
+  transition: transform .1s linear, opacity .1s linear;
+}
+.work-object:nth-child(even) { grid-template-columns: 1fr 1.15fr; }
+.work-object:nth-child(even) .work-object__media { order: 2; }
+.work-object:nth-child(even) .work-object__meta { order: 1; text-align: right; align-items: flex-end; }
+.work-object:nth-child(even) .work-object__eyebrow { flex-direction: row-reverse; }
+
+/* dark-on-light placeholder now, not white-on-transparent — same reason as
+   .category-chip above (this only ever sits on .scene--work-standalone's
+   now-pale background). */
+.work-object__media {
+  position: relative;
+  aspect-ratio: 4/3; border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(31,42,60,.5);
+  background: rgba(31,42,60,.05);
+  border: 1.5px dashed rgba(31,42,60,.25);
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out), border-color var(--duration-fast) var(--ease-smooth);
+}
+/* small alternating tilt on hover (odd items lean one way, even the other)
+   — matches the hand-drawn/illustrated character of the rest of the site
+   rather than a plain uniform zoom. */
+.work-object:hover .work-object__media { transform: scale(1.035) rotate(-.6deg); box-shadow: 0 26px 50px -18px rgba(31,42,60,.35); border-color: rgba(31,42,60,.4); }
+.work-object:nth-child(even):hover .work-object__media { transform: scale(1.035) rotate(.6deg); }
+
+.work-object__meta { display: flex; flex-direction: column; }
+.work-object__eyebrow {
+  display: flex; align-items: center; gap: .9rem;
+  font-size: .8rem; letter-spacing: .1em; color: var(--scene-accent); opacity: .9;
+}
+/* the index-rule-category header from the reference layout — a thin line
+   filling the space between the number and the category label instead of
+   the plain "01 / CATEGORY" text it replaces. */
+.work-object__rule { flex: 1; height: 1px; background: currentColor; opacity: .35; min-width: 1.5rem; }
+/* bumped up again from clamp(1.9rem,3.4vw,2.6rem)/1.08rem/.88rem — still
+   read small/muted at the previous size. Opacity raised alongside the size
+   bump (.82->.93, .6->.72) since a bigger but still-faded label doesn't
+   actually read as clearer, just bigger. */
+.work-object__title { font-family: var(--font-display); font-size: clamp(2.2rem, 4vw, 3.1rem); margin-top: .5rem; }
+.work-object__desc { margin-top: .7rem; font-size: 1.22rem; line-height: 1.6; opacity: .93; max-width: 46ch; }
+.work-object:nth-child(even) .work-object__desc { margin-left: auto; }
+/* tech stack + year — was collected in data.js but never actually shown on
+   the archive listing before, only inside the full case-study page. */
+.work-object__tags { margin-top: .7rem; font-size: .98rem; letter-spacing: .02em; opacity: .72; }
+/* a real capsule button (matches .contact__cta's shape/weight) instead of
+   plain underlined text — solid fill so it reads as clickable on its own,
+   not just as a hover state of the whole row. */
+.work-object__link {
+  display: inline-flex; align-items: center; gap: .4rem;
+  /* .work-object__meta is a flex column with no align-items set, which
+     defaults to stretch — without this the capsule stretched to the full
+     width of the text column instead of hugging its own label. */
+  align-self: flex-start;
+  margin-top: 1.3rem;
+  padding: .65rem 1.5rem;
+  border-radius: 999px;
+  background: var(--scene-accent);
+  color: #fff8ea;
+  font-size: .88rem; font-weight: 600;
+  box-shadow: 0 10px 22px -12px rgba(31,42,60,.4);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-smooth);
+}
+.work-object:hover .work-object__link { transform: translateY(-3px); box-shadow: 0 16px 28px -12px rgba(31,42,60,.5); background: #922f10; }
+.work-object:nth-child(even) .work-object__link { align-self: flex-end; }
+
+.work__view-all { text-align: center; padding: 0 1.5rem 3vh; position: relative; z-index: 2; }
+.work__view-all a {
+  display: inline-block; border: 1px solid rgba(255,255,255,.5); border-radius: 999px;
+  padding: .8rem 2rem; font-size: .9rem; color: #fffdf7;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.work__view-all a:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); }
+.work__view-all a:active { transform: translateY(0); }
+/* this link sits near the very bottom of .scene--work's gradient (the moss
+   end) on Home — white text there measured ~1.7:1, fails. .scene--work-
+   standalone (the Work archive page) is a flat dark blue the whole way
+   down, where the plain white/transparent version above already reads
+   fine, so this is scoped to .scene--work specifically, not the shared
+   .work__view-all a rule. Same dark-backdrop approach as the cards above,
+   for the same reason: reliable contrast regardless of what's behind it. */
+.scene--work .work__view-all a { background: rgba(13, 27, 46, .55); }
+.scene--work .work__view-all a:hover { background: rgba(13, 27, 46, .7); }
+
+@media (max-width: 780px) {
+  .work__field { gap: 3.5rem; padding-top: 3vh; padding-bottom: 10vh; }
+  /* side-by-side doesn't fit a phone-width column — stack image above
+     details instead, and always left-align (the alternating right-align
+     reads as a layout bug at this width, not a deliberate rhythm). */
+  .work-object, .work-object:nth-child(even) {
+    grid-template-columns: 1fr; gap: 1.25rem;
+  }
+  .work-object__media, .work-object:nth-child(even) .work-object__media { order: 0; aspect-ratio: 16/10; }
+  .work-object__meta, .work-object:nth-child(even) .work-object__meta { text-align: left; align-items: flex-start; }
+  .work-object__eyebrow, .work-object:nth-child(even) .work-object__eyebrow { flex-direction: row; }
+  .work-object__desc, .work-object:nth-child(even) .work-object__desc { margin-left: 0; }
+  .work-object__link, .work-object:nth-child(even) .work-object__link { align-self: flex-start; }
+}
+
+/* ---- Home "Selected Work" — a curated highlight, not the archive: a
+   contained/framed card in a plain uniform grid, distinct from the Work
+   page's borderless size-varying `.work-object`. ---- */
+.work__field[data-featured-only] {
+  /* the shared .work__field base rule now sets display:flex/flex-direction:
+     column (added later for the Work archive's zigzag .work-object rows) —
+     without re-declaring display:grid here, grid-template-columns below had
+     no effect and these three cards silently stacked full-width in a single
+     column instead of sitting side by side, which also threw off this
+     section's pin/spacer height tuning (see .scene--work.scene--pin) since
+     the stacked cards were far taller than the grid layout this was tuned
+     for — that's what let "View all work" appear to overlap a card. */
+  display: grid;
+  max-width: 1180px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  padding-top: 2vh;
+}
+.featured-work-card {
+  display: block; grid-column: span 1;
+  /* was rgba(255,255,255,.08) — on .scene--work's cream-to-blue gradient
+     that's basically glass, so the white/cream text on top had no reliable
+     surface to sit on (near-invisible over the cream part of the gradient).
+     A dark, mostly-opaque navy card gives the light text a consistent
+     backdrop regardless of where the card lands on that gradient. */
+  background: rgba(13, 27, 46, .68);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  /* --stack-x (set per-card below) is how far this card sits from the
+     CENTER card's slot — 0 for the center card itself. At --pin-p 0 (pin
+     just reached, not yet scrolled through) the full offset is applied,
+     landing every card exactly on top of the center one (same X, no
+     rotation/tilt — a straight overlap, not a fanned deck); as --pin-p
+     races to 1 it eases back to each card's own grid slot. --pin-p (not
+     each card's own scroll-linked --p) because the section is pinned — see
+     .scene--work.scene--pin above — so every card shares the SAME 0->1
+     progress, driven by scroll while the section holds still, instead of
+     each racing ahead independently and finishing at whatever random point
+     the page happened to be scrolled to (previously left cards overlapping
+     mid-scroll, unreadable). CSS custom properties inherit, so --pin-p set
+     on the outer #scene-work section (by initScrollEngine in script.js)
+     reaches these cards with no extra plumbing needed. Percentages in a
+     transform are relative to the element's OWN box, and every column here
+     is equal width (1fr), so translateX by exactly one column's width
+     (100% + the grid gap) lands precisely in the neighbor slot regardless
+     of viewport size — no JS measurement needed. Kept as a separate
+     translateX (not baked into --stack-x) because the fixed "2rem" has to
+     match .work__field[data-featured-only]'s own gap below — if that gap
+     ever changes, update both together. */
+  transform:
+    translateY(calc((1 - var(--pin-p, 0)) * 40px))
+    translateX(calc(var(--stack-x, 0%) * (1 - var(--pin-p, 0))));
+  opacity: calc(0.4 + var(--pin-p, 0) * .6);
+  transition: transform .1s linear, opacity .1s linear, border-color var(--duration-fast) var(--ease-smooth);
+}
+.featured-work-card:hover { border-color: rgba(255,255,255,.5); }
+.work__field[data-featured-only] .featured-work-card:nth-child(3n+1) { --stack-x: calc(100% + 2rem); z-index: 1; }
+.work__field[data-featured-only] .featured-work-card:nth-child(3n+2) { z-index: 2; }
+.work__field[data-featured-only] .featured-work-card:nth-child(3n+3) { --stack-x: calc(-100% - 2rem); z-index: 1; }
+.featured-work-card__media {
+  aspect-ratio: 16/10;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,255,255,.75);
+  background: rgba(0, 0, 0, .18);
+  border-bottom: 1.5px dashed rgba(255,255,255,.3);
+}
+/* multi-image cycling — shared by this card's media AND .work-object__media
+   on the Work archive (see initMediaCarousels in script.js, which drives
+   both from one timer). script.js builds one .media-slide per entry in
+   project.gallery (falling back to a single slide for heroImage) and
+   rotates which one carries .is-active. Cross-fade only (opacity), no
+   layout shift, so the dashed border/placeholder text underneath never
+   peeks through once at least one slide is active. */
+.media-slide {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  opacity: 0;
+  transition: opacity 1s var(--ease-smooth);
+}
+.media-slide.is-active { opacity: 1; }
+/* pagination dots — one per gallery image, mirrors whichever .media-slide is
+   currently .is-active (kept in sync by the same timer in initMediaCarousels,
+   see script.js). Only built when there's more than one image, so a
+   single-image/placeholder card never gets a stray lone dot. Sits inside the
+   media element itself (position:absolute, bottom-anchored) rather than
+   pushed into the row's text column, so it reads as part of the image the
+   way pagination dots normally do. */
+.media-dots {
+  position: absolute; z-index: 2; left: 50%; bottom: .9rem;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: .4rem;
+}
+.media-dots__dot {
+  width: .5rem; height: .5rem; border-radius: 50%;
+  background: rgba(255,255,255,.55);
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  transition: background var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-smooth);
+}
+.media-dots__dot.is-active { background: #fff; transform: scale(1.3); }
+/* manual prev/next — plain buttons layered over the slides, hidden until
+   hover/focus so they don't clutter the image the rest of the time (the
+   dots stay put as the permanent "how many / which one" indicator). */
+.media-nav {
+  position: absolute; z-index: 2; top: 50%;
+  width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(13, 27, 46, .45);
+  color: #fff;
+  font-size: 1.3rem; line-height: 1;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity var(--duration-fast) var(--ease-smooth), background var(--duration-fast) var(--ease-smooth);
+}
+.media-nav:hover { background: rgba(13, 27, 46, .7); }
+.media-nav--prev { left: .7rem; }
+.media-nav--next { right: .7rem; }
+.work-object__media:hover .media-nav,
+.featured-work-card__media:hover .media-nav,
+.media-nav:focus-visible {
+  opacity: 1;
+}
+.featured-work-card__body { padding: 1.5rem; }
+.featured-work-card__title { font-family: var(--font-display); font-size: 1.3rem; }
+.featured-work-card__category { margin-top: .3rem; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--scene-accent); }
+.featured-work-card__desc { margin-top: .6rem; font-size: .9rem; line-height: 1.5; opacity: .82; }
+
+@media (max-width: 780px) {
+  .work__field[data-featured-only] { grid-template-columns: 1fr; }
+  /* single column on mobile — the neighbor-slot overlap trick above needs
+     3 equal-width columns to line cards up, so it's turned off here and
+     cards just use the plain translateY/opacity reveal instead. */
+  .work__field[data-featured-only] .featured-work-card:nth-child(3n+1),
+  .work__field[data-featured-only] .featured-work-card:nth-child(3n+3) { --stack-x: 0%; }
+  /* the scroll-lock pin above exists to hold the stack-unfold long enough
+     to read — with no stacking on mobile (just above) there's nothing to
+     protect, so it's switched back to plain normal-flow content instead of
+     making mobile visitors sit through a held scroll for no visible reason. */
+  .scene--work.scene--pin .scene__pin { position: static; height: auto; overflow: visible; display: block; }
+  .scene--work.scene--pin .scene__pin-spacer { height: 0; }
+}
+
+/* ==========================================================================
+   9. WHAT I'VE LEARNED — pinned stacked cards — Home only
+   ========================================================================== */
+.scene--learned {
+  --scene-bg: var(--moss); --scene-fg: var(--ink-900);
+  /* --coral reads fine as an accent everywhere else it's used (mostly on
+     cream/sand/near-black), but coral-on-moss-green specifically is low
+     contrast — overridden to a dark brown here (and a bright cream in dark
+     mode, since --moss itself goes near-black there) just for this scene's
+     eyebrow label. */
+  --scene-accent: #4a3813;
+  --scene-muted: #56603c;
+  /* height: auto (not omitted!) — this has to explicitly override the
+     shared .scene--pin { height: 100vh } base rule, since this element
+     also carries that class. Sizes naturally from its flow children
+     instead (.scene__pin's fixed 100vh + .scene__pin-spacer's slack + the
+     seam image's own aspect-ratio height below). A hardcoded vh height
+     here didn't fully account for the seam image's real rendered height,
+     and any mismatch either let the seam overlap the still-pinned cards
+     (too short) or left an oversized dead gap of empty moss background
+     before Gallery (too tall) — auto-sizing from real content removes the
+     guesswork and stays correct at any viewport size. */
+  height: auto;
+  /* two explicit phases instead of driving both "spread apart" and "hand
+     off to next section" off the same --pin-p: cards must finish spreading
+     (fully legible, not overlapping) before anything else starts moving.
+     --spread-p races 0->1 across the pin's first half; --rise-p stays 0
+     through that whole first half, then races 0->1 across the second half. */
+  --spread-p: min(1, calc(var(--pin-p, 0) * 2));
+  --rise-p: min(1, max(0, calc((var(--pin-p, 0) - 0.5) * 2)));
+}
+.learned__texture {
+  position: absolute; inset: 0; z-index: 0;
+  background-image: url("assets/testimonials-willow-tile.jpg");
+  background-size: 480px; opacity: .16; mix-blend-mode: multiply;
+}
+.learned__land {
+  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 45%; z-index: 1;
+  /* no scroll-linked transform here on purpose: .learned__trees (z-index 2,
+     standing on this same ground) never moves, it's pinned at a fixed
+     bottom: 6%. Drifting this layer independently made the path/ground
+     visibly detach from the trees rooted in it — they're one surface and
+     must scroll as one static layer. */
+  /* fade the top edge to transparent so the scene's own --moss background
+     (sitting behind this image) shows through and blends into it, instead
+     of the image's hard top edge just appearing to sit on top of the
+     forest with a visible seam. Softened saturation/brightness so the
+     land art reads closer to the misty forest palette above it rather
+     than clashing with more saturated colors. */
+  mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 100%);
+  filter: saturate(.78) brightness(.97);
+}
+.learned__trees {
+  position: absolute; left: 0; right: 0; bottom: 6%; z-index: 2;
+  display: flex; justify-content: space-between; padding: 0 4%;
+  opacity: .85; pointer-events: none;
+}
+.learned__trees img { height: clamp(60px, 12vw, 140px); width: auto; }
+
+/* nudges the whole centered heading+cards group (they're the only two
+   flex-flow children of .scene__pin, everything else here is position:
+   absolute) up slightly, giving a bit more breathing room above the rising
+   cream cover at the bottom. */
+.scene--learned .scene__inner { position: relative; z-index: 3; margin-top: -6vh; }
+.learned__stack {
+  position: relative; z-index: 3; height: 46vh;
+  display: flex; align-items: center; justify-content: center;
+}
+.learned-card {
+  position: absolute;
+  width: min(340px, 78vw);
+  background: rgba(255, 253, 247, .92);
+  border-radius: var(--radius-lg);
+  padding: 2rem 1.75rem;
+  box-shadow: var(--shadow-soft);
+  /* phase 1 (--spread-p, first half of the pin): cards go from stacked to
+     fully spread/legible. phase 2 (--rise-p, second half): the whole,
+     already-spread group lifts and fades to hand off to the next section —
+     mirrors the Hero's "person shrinks + cream grows, then hands off"
+     two-stage pattern instead of overlapping both changes the whole time. */
+  transform:
+    translate(calc(var(--spread-x) * var(--spread-p)), calc(var(--stack-y) * (1 - var(--spread-p)) + var(--spread-p) * var(--spread-y)))
+    rotate(calc(var(--rot) * (1 - var(--spread-p) * 0.6)))
+    scale(calc(0.82 + var(--spread-p) * 0.18))
+    translateY(calc(var(--rise-p) * -12vh));
+  /* rise-p multiplier goes all the way to 0 (not a partial dim) — capped at
+     .4 before, the cards never fully disappeared, so they lingered as pale,
+     near-white translucent rectangles floating above the treeline once
+     lifted clear of the rising cover below (that cover is what's actually
+     supposed to hide them; the fade is just the handoff on top of it). */
+  opacity: calc((var(--base-opacity) + (1 - var(--base-opacity)) * var(--spread-p)) * (1 - var(--rise-p)));
+  will-change: transform;
+}
+.learned-card__text { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.6; color: var(--ink-900); }
+.learned-card__text::before { content: "“"; font-size: 1.6em; color: var(--coral); line-height: 0; vertical-align: -.3em; }
+.learned-card__tag { margin-top: 1.2rem; font-weight: 700; font-size: .85rem; letter-spacing: .04em; color: var(--coral); }
+
+/* rising cream cover — separate layer on top of the forest/cards, SAME
+   background-image technique as .hero__ground-clouds now (wave layer,
+   fixed pixel size so it never stretches/distorts, + a solid-color layer
+   underneath that only starts where the wave art is already fully opaque
+   itself). Height driven by --rise-p so it only starts growing once the
+   cards have fully spread (rise-p stays 0 through the whole spread phase),
+   then rises to fully cover the shrinking/lifting cards + forest by the
+   time the pin releases — mirroring "portrait shrinks, cloud grows to
+   cover" in the Hero.
+   This used to be a plain <img> (object-fit:cover, no height set) sitting
+   on top of a background-color fill on the parent. Two problems with that:
+   (1) the <img> only ever rendered at its own natural intrinsic height, so
+   once this container's growth range was increased (see height below) the
+   image stopped reaching the container's bottom edge, leaving a gap that
+   showed .learned__land (the forest floor) through underneath; (2) filling
+   that gap with a flat background-color on the parent ALSO painted behind
+   the image's own transparent wave notches, killing the contrast against
+   the green scene that made the wave shape readable in the first place —
+   it just read as a flat cream rectangle. Using one element's own
+   background-image list instead (wave PNG + linear-gradient) fixes both:
+   the gradient's solid start is keyed to the same 56% mark (see below) the
+   wave PNG's own alpha resolves to solid, so it only ever extends the
+   PNG's *already-solid* trailing color further down — it never paints over
+   the wave's transparent-against-green notches near the top. */
+.learned__cover {
+  position: absolute; left: -6%; right: -6%; bottom: -1%; z-index: 4;
+  /* was * 80vh: grew almost to full viewport height, so mid-rise the
+     screen was dominated by a long stretch of flat --sand below the wave
+     with nothing happening. 50vh is still comfortably more than enough to
+     fully cover the cards — they've already shrunk, faded, and lifted
+     -12vh toward the vertical center by the time rise-p nears 1, the same
+     way the Hero's cloud only needed to grow ~45vh total to fully cover
+     the (also shrinking/recentering) portrait. Confirmed by measuring the
+     card's actual position: it needs ~38vh of growth minimum to be fully
+     covered — 50vh keeps a safe margin. Do not drop this below ~40vh. */
+  height: calc(max(20vh, 11vw) + var(--rise-p, 0) * 50vh);
+  overflow: hidden;
+  pointer-events: none;
+  /* --wave-h: the wave PNG's rendered height, fixed in px (not %/vh) so it
+     never stretches as the container above grows — same reasoning as
+     .hero__ground-clouds. testimonials-grass-cream.png's own alpha channel
+     resolves to fully opaque by ~56% down its height (sampled row by row
+     across several columns, worst case ~47%; 56% keeps a safety margin) —
+     the linear-gradient's solid stop reuses that same fraction of --wave-h
+     so the two layers meet with no visible seam and without the gradient
+     ever painting behind the wave's own see-through notches. Bottom row of
+     the PNG samples to #eee8d2, close enough to --sand (#efe6cb, used right
+     after by .scene--gallery) that the PNG's own base and this fill and the
+     next section all read as one continuous surface. */
+  --wave-h: clamp(120px, 15vw, 210px);
+  background-image:
+    url("assets/testimonials-grass-cream.png"),
+    linear-gradient(to bottom, transparent 0, transparent calc(var(--wave-h) * 0.56), #eee8d2 calc(var(--wave-h) * 0.56), #eee8d2 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100% var(--wave-h), 100% 100%;
+  background-position: top, top;
+}
+/* the PNG is a fixed light-cream asset with no dark variant — left as-is it
+   would sit as a bright, glaring patch once .scene--learned/.scene--gallery
+   re-theme dark around it. Darkening the whole element (wave + solid fill
+   together, since both now live in one background-image list) keeps it
+   consistent with the rest of the re-themed dark scene without a 2nd asset. */
+
+/* .scene__pin only reserves its own 100vh in normal flow — this spacer
+   reserves the remaining 90vh of pure "scroll slack" (the distance the pin
+   stays stuck for) so --pin-p / --spread-p / --rise-p have room to animate
+   before release. (.scene--learned itself has no explicit height — see
+   above — so pin + this spacer are what determine how long it stays stuck.) */
+.scene__pin-spacer { height: 90vh; }
+
+@media (max-width: 780px) {
+  .learned__cover { height: calc(max(14vh, 10vw) + var(--rise-p, 0) * 35vh); }
+  /* smaller slack to match the shorter mobile spread/rise distance. */
+  .scene__pin-spacer { height: 50vh; }
+  .learned-card { width: 82vw; }
+  .learned__trees img { height: 50px; }
+}
+
+/* ==========================================================================
+   9b. LIFE OUTSIDE THE SCREEN — multi-photo editorial GRID, Home only.
+   Six fixed grid slots (nth-child spans + aspect ratios give the size
+   rhythm — not JS positioning). Only ONE slot currently has a real photo;
+   the rest render as honest [PHOTO 0x] placeholders rather than any stock
+   or generated person, so the section never reads as "one person centered."
+   The grid settles into place ONCE via [data-reveal] on `.gallery-field`
+   (subtle scale/opacity/translateY); individual photos add only a tiny
+   fade-in stagger on top — everything stays aligned to the grid the whole
+   time, nothing flies, rotates hard, or expands to fullscreen.
+   ========================================================================== */
+.scene--gallery { --scene-bg: var(--sand); --scene-fg: var(--ink-900); --scene-accent: var(--coral); --scene-muted: #eee8d2 ; padding-bottom: 10vh; }
+
+.gallery-field {
+  max-width: 1360px; margin: 0 auto;
+  padding: 5vh clamp(1.25rem, 5vw, 3rem) 2vh;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.1rem;
+}
+.gallery-field[data-reveal] {
+  opacity: .85;
+  transform: scale(.97) translateY(24px);
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+.gallery-field[data-reveal].is-in { opacity: 1; transform: none; }
+
+.gallery-photo {
+  position: relative; margin: 0; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  opacity: 0;
+  /* continuous scroll-linked grow, same --p the scene already computes for
+     .work-object/.featured-work-card — photos ease up to full size as the
+     gallery scene scrolls through, on top of the one-time fade-in below.
+     transform's own delay is pinned to 0ms per nth-child so it never
+     inherits the fade-in stagger (see the --p/transition-delay note for
+     .work-object) — mixing a delay into a per-frame-updated property causes
+     a rolling freeze. */
+  transform: scale(calc(0.82 + var(--p, 0) * 0.18));
+  transition: opacity var(--duration-normal) var(--ease-out), box-shadow var(--duration-fast) var(--ease-smooth), transform .1s linear;
+}
+.gallery-field.is-in .gallery-photo { opacity: 1; }
+.gallery-photo:nth-child(1) { transition-delay: 0ms, 0ms, 0ms; }
+.gallery-photo:nth-child(2) { transition-delay: 60ms, 60ms, 0ms; }
+.gallery-photo:nth-child(3) { transition-delay: 120ms, 120ms, 0ms; }
+.gallery-photo:nth-child(4) { transition-delay: 180ms, 180ms, 0ms; }
+.gallery-photo:nth-child(5) { transition-delay: 240ms, 240ms, 0ms; }
+.gallery-photo:nth-child(6) { transition-delay: 300ms, 300ms, 0ms; }
+.gallery-photo:nth-child(7) { transition-delay: 360ms, 360ms, 0ms; }
+.gallery-photo:nth-child(8) { transition-delay: 420ms, 420ms, 0ms; }
+.gallery-photo:nth-child(9) { transition-delay: 480ms, 480ms, 0ms; }
+.gallery-photo:nth-child(n+10) { transition-delay: 540ms, 540ms, 0ms; }
+
+/* top-aligned crop, not centered — grid slots are a mix of landscape and
+   portrait shapes but the source photos are mostly portrait people-shots,
+   and a centered cover crop was slicing heads off in the wider slots. */
+.gallery-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; transition: transform var(--duration-normal) var(--ease-out); }
+
+.gallery-photo--empty {
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31,42,60,.05); border: 1.5px dashed rgba(31,42,60,.2);
+}
+/* not var(--scene-muted) (#eee8d2, near-white) — this label only ever sits
+   on .gallery-photo--empty's own near-sand placeholder tint, where it
+   measured ~1:1 contrast (invisible). --scene-muted is tuned for the
+   section's actual --sand background elsewhere, not this slightly-tinted
+   placeholder box, so it's kept as its own dark value instead of reusing
+   the section token. */
+.gallery-photo__label { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: rgba(31,42,60,.55); }
+
+/* Hovering a photo reveals its caption as an overlay on the photo itself
+   (not text below it). On touch devices (no hover) the caption just stays
+   visible, since there's no hover gesture to reveal it. */
+.gallery-photo__overlay {
+  position: absolute; inset: 0; display: flex; align-items: flex-end;
+  padding: 1.25rem;
+  background: linear-gradient(to top, rgba(15,15,15,.75) 0%, rgba(15,15,15,.25) 45%, transparent 75%);
+}
+/* caption text gets its own solid dark chip behind it — the overlay's
+   gradient fades to transparent toward the top and empty/placeholder slots
+   have a near-white backdrop, so relying on the gradient alone left white
+   text sitting directly on plain cream in places. */
+.gallery-photo__overlay p {
+  margin: 0; color: #fff; font-family: var(--font-display); font-size: 1.05rem; line-height: 1.4;
+  display: inline-block;
+  background: rgba(0,0,0,.55);
+  padding: .45rem .7rem;
+  border-radius: 8px;
+}
+
+@media (hover: hover) {
+  .gallery-photo:hover { box-shadow: 0 16px 34px -14px rgba(0,0,0,.4); }
+  .gallery-photo:hover img { transform: scale(1.04); }
+  .gallery-photo__overlay { opacity: 0; transition: opacity var(--duration-normal) var(--ease-smooth); }
+  .gallery-photo:hover .gallery-photo__overlay { opacity: 1; }
+}
+
+/* size/aspect rhythm cycles every 6 photos (two differently-shaped rows of
+   3, each summing to 12 — the grid's full width) instead of every 3 — a
+   3-cycle repeated the exact same big/medium/small shape on every single
+   row, which at a glance reads as evenly-sized and blunt despite the
+   per-row variation; alternating which slot is biggest between the two
+   rows breaks that up. Same nth(Nn+X) reasoning as .work-object's cycle,
+   so this still accepts any number of photos in data.js. */
+.gallery-photo:nth-child(6n+1) { grid-column: span 6; aspect-ratio: 4/3; }
+.gallery-photo:nth-child(6n+2) { grid-column: span 3; aspect-ratio: 1/1; }
+.gallery-photo:nth-child(6n+3) { grid-column: span 3; aspect-ratio: 3/4; }
+.gallery-photo:nth-child(6n+4) { grid-column: span 3; aspect-ratio: 4/5; }
+.gallery-photo:nth-child(6n+5) { grid-column: span 5; aspect-ratio: 3/2; }
+.gallery-photo:nth-child(6n+6) { grid-column: span 4; aspect-ratio: 1/1; }
+
+@media (max-width: 1024px) {
+  .gallery-field { grid-template-columns: repeat(9, 1fr); }
+  .gallery-photo:nth-child(6n+1) { grid-column: span 4; }
+  .gallery-photo:nth-child(6n+2) { grid-column: span 3; }
+  .gallery-photo:nth-child(6n+3) { grid-column: span 2; }
+  .gallery-photo:nth-child(6n+4) { grid-column: span 2; }
+  .gallery-photo:nth-child(6n+5) { grid-column: span 4; }
+  .gallery-photo:nth-child(6n+6) { grid-column: span 3; }
+}
+
+@media (max-width: 780px) {
+  .gallery-field { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .gallery-photo { grid-column: span 1 !important; aspect-ratio: 1/1 !important; }
+  .gallery-photo:nth-child(3n) { grid-column: 1 / -1 !important; aspect-ratio: 16/10 !important; }
+  .gallery-photo__overlay p { font-size: .9rem; }
+}
+/* on touch devices .gallery-photo__overlay has no hover gesture to reveal
+   it, so it stays permanently visible (see the rule's own comment above)
+   — fine for real photos, but for the "[PHOTO 0X]" empty placeholder that
+   overlay's caption sits directly on top of .gallery-photo__label,
+   overlapping into unreadable double text. The label is just a dev
+   reminder that no image has been added yet; the caption is real content,
+   so on touch it wins and the label steps aside. */
+@media not all and (hover: hover) {
+  .gallery-photo--empty .gallery-photo__label { display: none; }
+}
+
+/* ---- "Words I Live By" quote cards — the elaborate scroll-jacked spread
+   (cards fly apart via --spread-x/--spread-y, both fixed px amounts
+   calculated for a wide desktop stage) only ever had a flattened,
+   non-overlapping fallback under prefers-reduced-motion (see that media
+   block further down); on an ordinary phone the cards spread by those
+   same wide-desktop pixel amounts on a ~380px-wide screen and mostly
+   land on top of each other. Reusing that same flattened layout here
+   (not just under reduced-motion) fixes it for every mobile visitor,
+   not only those with the OS setting on. */
+@media (max-width: 780px) {
+  .learned__stack { position: static; height: auto; display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 2vh 0 6vh; }
+  .learned-card { position: static; transform: none !important; width: min(340px, 84vw); }
+}
+
+/* ==========================================================================
+   10. FINAL CTA + FOOTER — Home only (the dedicated /contact.html page has
+   its own fuller stub, see section 13)
+   ========================================================================== */
+/* overflow:hidden scoped here (not on .scene generally — that rule used to
+   exist and broke position:sticky on the pinned scenes) because
+   .ground--footer intentionally sits at a negative top offset, bleeding
+   14vh above .scene--contact's own box. Before .scene lost its blanket
+   overflow:hidden, that bled portion was invisible by accident; without
+   this scoped rule it shows up as the Gallery section's bottom having a
+   chunk of the dark footer-land hill artwork poking up into it. */
+.scene--contact { --scene-bg: var(--near-black); --scene-fg: #fff8ea; --scene-accent: #ffd76a; --scene-muted: #b7ac93; padding-top: 17vh; overflow: hidden; }
+/* top pulled in from the original -14vh: with .scene--contact now clipping
+   (see above), a full -14vh offset put the ENTIRE image above the section's
+   own box, i.e. 100% clipped/invisible. -4vh keeps most of the art visible
+   within Contact's own bounds instead of wasting it. */
+.ground--footer { position: absolute; top: -4vh; height: 14vh; z-index: 1; }
+.ground--footer img { object-fit: cover; object-position: bottom; height: 100%; width: 100%; }
+/* footer-land.png on its own is two flat near-black/dark-brown tones — fine
+   as a silhouette, but next to the Hero wave and Learned's coral-ridge
+   hills it read as a flat, colorless gap instead of another layer in the
+   same hand-drawn family. A thin glowing ridge line in the section's own
+   --scene-accent gold, sitting right where the art's silhouette peaks
+   meet Gallery's cream above it, ties it into that same "wave + solid
+   land" language and gives the seam some depth instead of a flat cut. */
+/* top: 4vh, not 0 — .ground--footer itself sits at top:-4vh (bled above
+   .scene--contact's own box, see above), and .scene--contact clips with
+   overflow:hidden. A ridge at top:0 inherited that same -4vh offset, so
+   ~2/3 of its height was cut off before it ever reached the section's own
+   visible top edge, i.e. essentially invisible. +4vh cancels that offset
+   out so the ridge starts exactly at the section's own (visible) top. */
+.ground--footer__ridge {
+  position: absolute; top: 4vh; left: -6%; right: -6%; z-index: 2;
+  /* was 46px — thin enough that the wave crests barely read before
+     getting lost in the shadow filter below. */
+  height: 90px;
+  background-image: url("assets/contact-ridge-wave.svg");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: top;
+  /* screen (not plain opacity) so the gold only ever brightens the dark
+     art under it instead of sitting on top as a flat translucent sticker
+     with a visible hard edge — same "light layered over dark" look as the
+     underlying art's own texture, so the two read as one surface. */
+  mix-blend-mode: screen;
+  opacity: .85;
+  filter: blur(1.5px) drop-shadow(0 0 14px rgba(255, 215, 106, .45));
+  pointer-events: none;
+}
+.scene--contact .scene__inner { position: relative; z-index: 2; text-align: center; padding-top: 4vh; }
+.contact__heading { font-family: var(--font-display); font-size: clamp(2.2rem, 6vw, 4rem); max-width: none; margin: 0 auto; }
+.contact__body { margin: 1.25rem auto 0; max-width: 46ch; color: var(--scene-muted); font-size: 1.05rem; }
+.contact__cta {
+  display: inline-block; margin-top: 2.5rem;
+  background: var(--scene-accent); color: var(--near-black);
+  font-weight: 700; padding: .9rem 2.2rem; border-radius: 999px;
+  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+.contact__cta:hover { transform: translateY(-1px); opacity: .9; }
+.contact__cta:active { transform: translateY(0); }
+
+.footer {
+  position: relative; z-index: 2;
+  max-width: 1180px; margin: 0 auto; padding: 3rem clamp(1.25rem, 5vw, 3rem) 2.5rem;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  border-top: 1px solid rgba(255,255,255,.12); margin-top: 6vh;
+}
+.footer__copy { font-size: .85rem; opacity: .72; }
+.footer__social { display: flex; gap: 1.5rem; }
+.footer__social a { font-size: .85rem; opacity: .75; }
+.footer__social a:hover { opacity: 1; }
+
+/* ==========================================================================
+   11. RESPONSIVE — GLOBAL OVERFLOW GUARD
+   ========================================================================== */
+html, body { max-width: 100%; }
+.scene, .scene__pin, .scene__inner { max-width: 100vw; }
+
+/* ==========================================================================
+   11b. DEBUG LAYOUT MODE — temporary diagnostic only, off by default.
+   Enable from the console with: document.body.classList.add('debug-layout')
+   Outlines every [data-scene] section and labels it with its data-scene-name,
+   so section boundaries/heights are visible while auditing scroll layout.
+   Safe to delete once the scroll architecture audit is done.
+   ========================================================================== */
+body.debug-layout [data-scene] {
+  outline: 2px solid red;
+  outline-offset: -2px;
+}
+body.debug-layout [data-scene]::before {
+  content: attr(data-scene-name);
+  position: sticky;
+  top: 4px;
+  z-index: 999;
+  display: block;
+  width: max-content;
+  margin: 0 0 0 4px;
+  padding: 2px 8px;
+  background: red;
+  color: #fff;
+  font: 11px/1.4 monospace;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   12. REDUCED MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .scene--pin { height: auto; }
+  .scene__pin { position: relative; top: auto; height: auto; min-height: 100vh; }
+  /* the pin isn't sticky here, so there's no scroll slack left to reserve. */
+  .scene__pin-spacer { display: none; }
+
+  .hero__content, .hero__deco, .hero__portrait, .hero__text, .scene--hero .layer--bg,
+  .work-object, .featured-work-card, .learned__land { transform: none !important; }
+
+  .scene--hero .layer--bg, .hero__deco .deco, .hero__portrait,
+  .hero__name, .hero__name-underline, .hero__sparkle,
+  .hero__role, .hero__tags { animation: none !important; opacity: 1 !important; }
+
+  .deco, .hero__portrait img, .hero__letter { transition: none !important; }
+
+  /* --scroll-progress is written by the scroll engine, which is entirely
+     skipped under reduced motion — the marker would otherwise just sit
+     frozen at the top (defaulting to 0), reading as broken rather than
+     intentional, so hide the whole indicator instead. */
+  .scroll-progress { display: none; }
+
+  .gallery-field, .gallery-photo { transform: none !important; opacity: 1 !important; transition-delay: 0ms !important; }
+
+  .cloud-layer { transform: none !important; }
+
+  .learned__stack { position: static; height: auto; display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 2vh 0 6vh; justify-content: center; }
+  .learned-card { position: static; transform: none !important; }
+
+  [data-reveal] { transition-duration: .01ms; transition-delay: 0ms !important; }
+}
+
+/* ==========================================================================
+   13. PROJECT CASE STUDY
+   ========================================================================== */
+/* ---- Project case study ---- */
+body[data-page="project"] { background: var(--cream); color: var(--ink-900); }
+
+/* background-size:cover (not the image's own dimensions) so the hero keeps
+   its existing padding-driven height and the tall sky photo just gets
+   cropped to fill it, instead of the section stretching to the image's own
+   aspect ratio. position:top keeps the deeper/more saturated blue from the
+   top of the source image in frame, where the white text already had
+   reliable contrast against the old flat --sky-mid fill. */
+.case-hero {
+  padding: 9rem 1.5rem 4rem; text-align: center; color: #fffdf7;
+  background-color: var(--sky-mid);
+  background-image: url("assets/BG_WORK.png");
+  background-size: cover;
+  /* --p (0->1 as the hero scrolls past, via initScrollEngine reading this
+     section's [data-scene]) drifts the sky slowly downward instead of
+     sitting static — a cheap bit of scroll-linked motion for a section that
+     otherwise has no animation of its own once its [data-reveal] fade-in
+     has already finished. */
+  background-position: center calc(0% + var(--p, 0) * 12%);
+}
+.case-hero__index { font-family: var(--font-display); font-size: .9rem; opacity: .7; }
+.case-hero__title { font-family: var(--font-display); font-size: clamp(2.4rem, 6vw, 4.2rem); margin-top: .3rem; }
+.case-hero__desc { margin: 1rem auto 0; max-width: 60ch; opacity: .85; font-size: 1.05rem; }
+/* per-letter hover — title is split into one <span> per grapheme in
+   renderProjectPage (script.js) specifically so :hover can target just the
+   character under the cursor instead of the whole heading. */
+.case-hero__title .letter { display: inline-block; transition: transform var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+.case-hero__title .letter:hover { transform: scale(1.25); color: #ffd873; }
+
+/* anchors the ambient .scene__deco layer added below (position:absolute)
+   for the whole cream body area, from the meta row through the nav. */
+.case-body { position: relative; }
+
+.case-meta {
+  position: relative; z-index: 2;
+  display: flex; flex-wrap: wrap; gap: 2rem 3rem; justify-content: center;
+  max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; border-bottom: 1px solid rgba(31,42,60,.12);
+}
+.case-meta div { min-width: 120px; transition: transform var(--duration-fast) var(--ease-out); }
+.case-meta div:hover { transform: translateY(-3px); }
+.case-meta dt { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; opacity: .55; }
+.case-meta dd { font-family: var(--font-display); font-size: 1.1rem; margin-top: .3rem; }
+/* forces Technology onto its own row below Role/Context/Year regardless of
+   viewport width — flex-basis:100% never fits in the remaining space of a
+   row that already has other items on it, so it always wraps. */
+.case-meta__tech { flex-basis: 100%; margin-top: .5rem; padding-top: 1.5rem; border-top: 1px solid rgba(31,42,60,.1); text-align: center; }
+.case-meta__tech dd { margin-top: .9rem; }
+.tech-list { display: flex; gap: .4rem; flex-wrap: wrap; }
+.tech-list li {
+  font-family: var(--font-display); font-size: .85rem;
+  border: 1px solid rgba(31,42,60,.2); border-radius: 999px; padding: .15rem .7rem;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.tech-list li:hover { background: var(--coral); border-color: transparent; color: #fff8ea; transform: translateY(-2px); }
+/* matches .case-meta dd (Role/Context/Year's value text) in size and color
+   so Technology reads at the same weight as the rest of the meta row,
+   instead of looking like a smaller/quieter afterthought below it; also
+   centered under its own row since it now spans the full width alone. */
+.case-meta__tech .tech-list { justify-content: center; }
+.case-meta__tech .tech-list li { font-size: 1.1rem; color: var(--ink-900); }
+
+/* darkens as each section's own center crosses the viewport's center — same
+   --p formula/self-progress mechanism as .work-object on the Work archive
+   (see initScrollEngine in script.js), not the shared once-only [data-reveal]
+   fade used by the rest of this page, so it keeps responding continuously
+   as you scroll instead of just fading in once and staying put. */
+.case-section {
+  position: relative; z-index: 2; max-width: 720px; margin: 0 auto; padding: 3.5rem 1.5rem; border-radius: var(--radius-md);
+  opacity: calc(0.35 + var(--p, 0) * .65);
+  transform: translateY(calc((1 - var(--p, 0)) * 24px));
+  transition: opacity .1s linear, transform .1s linear, background var(--duration-fast) var(--ease-smooth);
+}
+.case-section:hover { background: rgba(31,42,60,.03); }
+.case-section__num { font-family: var(--font-display); font-size: .9rem; opacity: .5; display: inline-block; transition: transform var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+.case-section:hover .case-section__num { transform: scale(1.2); color: var(--coral); opacity: 1; }
+.case-section h2 { font-family: var(--font-display); font-size: 1.9rem; margin-top: .3rem; }
+.case-section p { margin-top: 1rem; line-height: 1.75; opacity: .85; }
+/* "Project Link" section — real buttons, not body copy. Wrapped in a flex
+   container (rather than relying on inline-flex's own wrapping) so
+   multiple links — e.g. GitHub, Medium, a live demo — get consistent
+   gaps between them instead of touching. */
+.case-section__links { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.case-section__link {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .65rem 1.5rem;
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff8ea;
+  font-size: .95rem; font-weight: 600;
+  box-shadow: 0 10px 22px -12px rgba(31,42,60,.4);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.case-section__link:hover { transform: translateY(-2px); box-shadow: 0 16px 28px -12px rgba(31,42,60,.5); }
+/* "Certificate" section — an image slot, same dashed-placeholder language
+   as the rest of the site uses before a real image is supplied. A project
+   can have more than one certificate (e.g. multiple competition rounds),
+   so the wrapper lays them out as a wrapping row of boxes rather than a
+   single fixed slot. */
+.case-section__certificates { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; }
+.case-section__certificate {
+  width: 100%; max-width: 420px; aspect-ratio: 4/3;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed rgba(31,42,60,.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; opacity: .5;
+  background-size: cover; background-position: center;
+}
+.case-section__certificate.has-image { border-style: solid; opacity: 1; }
+.case-section__certificates--multi .case-section__certificate { max-width: 220px; }
+
+/* activity photos — unlimited entries, continuously auto-scrolling strip
+   (script.js renders the list twice back-to-back and animates
+   translateX(0 -> -50%); once the first copy has scrolled fully out, the
+   second copy is sitting exactly where the first began, so the loop has no
+   visible seam no matter how many photos are in it). Hovering pauses it,
+   same as the media carousel arrows elsewhere, so a photo can actually be
+   looked at without chasing it. */
+.case-activity { position: relative; z-index: 2; overflow: hidden; padding: 1rem 0 3.5rem; }
+.case-activity__heading {
+  max-width: 720px; margin: 0 auto; padding: 0 1.5rem 1.5rem;
+  font-family: var(--font-display); font-size: 1.9rem;
+}
+.case-activity__track {
+  display: flex; gap: 1rem; width: max-content;
+  animation: case-activity-scroll 25s linear infinite;
+}
+.case-activity__track:hover { animation-play-state: paused; }
+.case-activity__item {
+  flex: 0 0 auto;
+  width: 260px; aspect-ratio: 4/3;
+  border-radius: var(--radius-md);
+  background-size: cover; background-position: center;
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.case-activity__item:hover { transform: scale(1.05) translateY(-4px); box-shadow: 0 20px 34px -16px rgba(31,42,60,.4); }
+@keyframes case-activity-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .case-activity__track { animation: none; }
+}
+
+.case-nav {
+  position: relative; z-index: 2;
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 6rem;
+  border-top: 1px solid rgba(31,42,60,.12);
+}
+.case-nav a {
+  border: 1px solid rgba(31,42,60,.2); border-radius: 999px; padding: .7rem 1.6rem; font-size: .9rem;
+  display: inline-block;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.case-nav a:hover { background: rgba(31,42,60,.06); transform: translateY(-1px); }
+.case-nav a:active { transform: translateY(0); }
+
+/* ==========================================================================
+   14. ABOUT PAGE — editorial, personal; shares the brand palette with Home
+   but does not reuse the illustrated scene system.
+   ========================================================================== */
+body[data-page="about"] { background: var(--sand); color: var(--ink-900); }
+
+/* ---- reading focus — script.js's initAboutFocus sets --focus per
+   section every scroll tick (1 = this section's center is nearest the
+   viewport's center, i.e. it's the one being read; 0 = far from center).
+   The section currently in the middle of the screen stays fully lit;
+   everything else recedes slightly, never fully dims — this is meant to
+   be a subtle nudge, not a spotlight/blackout effect. ---- */
+.about-hero, .about-section {
+  opacity: calc(0.62 + 0.38 * var(--focus, 1));
+  transition: opacity 120ms linear;
+}
+
+/* ---- 01 Introduction ---- */
+.about-hero {
+  position: relative; overflow: hidden;
+  min-height: 84vh; display: flex; align-items: center;
+  background: var(--sand); padding: 9rem 1.5rem 4rem;
+}
+.about-hero__grid {
+  position: relative; z-index: 2;
+  max-width: 1180px; margin: 0 auto; width: 100%;
+  display: flex; align-items: center; gap: clamp(2rem, 6vw, 5rem);
+}
+.about-hero__text { flex: 1 1 420px; }
+.about-hero .eyebrow { color: var(--section-accent, var(--coral)); }
+.about-hero .eyebrow::before { background: var(--section-accent, var(--coral)); }
+.about-hero__greeting { margin-top: 1rem; font-family: var(--font-display); font-size: 1.3rem; opacity: .8; }
+.about-hero__statement {
+  font-family: var(--font-display); font-weight: 700;
+  /* was a punchy 2-line headline sized for ~16ch; the real statement runs
+     4 lines and mixes a short English line with a longer Thai one, so it
+     reads better a size down with more room per line rather than
+     wrapping those lines a second time inside a narrow column. */
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem); line-height: 1.3;
+  margin-top: .5rem; max-width: 38ch; color: var(--ink-900);
+  white-space: pre-line;
+}
+.about-hero__photo {
+  flex: 0 0 clamp(220px, 30vw, 360px); aspect-ratio: 3/4;
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft);
+  transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out);
+}
+.about-hero__photo:hover { transform: translateY(-4px); box-shadow: 0 26px 50px -18px rgba(31,42,60,.4); }
+.about-hero__photo img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--duration-normal) var(--ease-out); }
+.about-hero__photo:hover img { transform: scale(1.04); }
+@media (max-width: 860px) {
+  .about-hero__grid { flex-direction: column-reverse; text-align: center; }
+  .about-hero__photo { width: min(260px, 60vw); flex-basis: auto; }
+}
+
+/* shared by the Intro hero's Based In/Focus/Currently facts and A Little
+   About Me's Name/Field/Interests facts below — same short {label,value}
+   list, just two different fact sets. */
+.about-facts { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 1.75rem 2.5rem; }
+.about-facts__item { transition: transform var(--duration-fast) var(--ease-out); }
+.about-facts__item:hover { transform: translateY(-3px); }
+.about-facts__item dt { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; opacity: .55; }
+.about-facts__item dd { margin-top: .3rem; font-family: var(--font-display); font-size: 1.05rem; }
+@media (max-width: 860px) { .about-facts { justify-content: center; } }
+
+.about-section { position: relative; overflow: hidden; padding: 6rem 1.5rem; }
+/* .about-build is disabled (see about.html/data.js), so the cream/sand
+   split below is written for the sections actually on the page right
+   now — .about-beyond and .about-currently swapped groups from their
+   original assignment so the run from Skills onward keeps alternating
+   instead of landing on sand twice in a row. */
+.about-whoiam, .about-timeline, .about-build, .about-certs, .about-currently { background: var(--cream); }
+.about-journey, .about-skills, .about-beyond, .about-achievements { background: var(--sand); }
+
+/* ---- per-section accent — each section of the page picks one color out
+   of the same sky/coral/moss set (never anything outside the brand
+   palette) and every accent-driven element inside it (eyebrow dot,
+   hover borders, timeline/journey arrows) reads from --section-accent
+   instead of a single hardcoded coral, so the page reads as colorful and
+   varied top-to-bottom rather than one accent color repeated 9 times. ---- */
+.about-hero          { --section-accent: var(--coral); }
+.about-whoiam        { --section-accent: var(--sky-deep); }
+.about-journey       { --section-accent: var(--coral); }
+.about-timeline      { --section-accent: var(--moss-deep); }
+.about-skills        { --section-accent: var(--sky-deep); }
+.about-certs         { --section-accent: var(--coral); }
+.about-build         { --section-accent: var(--coral); }
+.about-beyond        { --section-accent: var(--moss-deep); }
+.about-currently     { --section-accent: var(--sky-deep); }
+.about-achievements  { --section-accent: var(--coral); }
+
+.about-section__inner { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; }
+.about-section__inner--narrow { max-width: 680px; }
+
+.about-heading {
+  font-family: var(--font-display); font-size: clamp(1.9rem, 4.4vw, 3rem);
+  line-height: 1.15; margin-top: .5rem; max-width: 18ch;
+}
+.about-body { margin-top: 1.5rem; font-size: 1.1rem; line-height: 1.8; opacity: .85; max-width: 60ch; }
+
+.about-section .eyebrow { color: var(--section-accent, var(--coral)); }
+.about-section .eyebrow::before { background: var(--section-accent, var(--coral)); }
+
+/* ---- 02 A Little About Me — grid (not flex) so both columns stretch to
+   the same height; the portrait drops its own aspect-ratio and instead
+   fills that stretched height directly (object-fit:cover keeps it
+   looking cropped correctly either way). That equal height is what lets
+   .whoiam-photos below sit flush at the very bottom of the text column
+   via margin-top:auto, lining its own bottom edge up with the portrait's
+   bottom edge exactly, regardless of how long the body text/facts run. ---- */
+.whoiam-layout {
+  margin-top: 2.5rem; display: grid;
+  grid-template-columns: clamp(200px, 26vw, 300px) 1fr;
+  align-items: stretch; gap: clamp(2rem, 5vw, 4rem);
+}
+.whoiam-layout__photo {
+  height: 100%;
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft);
+  transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out);
+}
+.whoiam-layout__photo:hover { transform: translateY(-4px) rotate(-1deg); box-shadow: 0 26px 50px -18px rgba(31,42,60,.4); }
+.whoiam-layout__photo img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--duration-normal) var(--ease-out); }
+.whoiam-layout__photo:hover img { transform: scale(1.04); }
+.whoiam-layout__content { display: flex; flex-direction: column; }
+.whoiam-layout__content .about-body { margin-top: 0; }
+@media (max-width: 780px) {
+  .whoiam-layout { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .whoiam-layout__photo { width: min(260px, 60vw); aspect-ratio: 3/4; height: auto; }
+  .whoiam-layout__content .about-facts { justify-content: center; }
+}
+
+/* small photo strip pinned to the bottom of the text column (margin-top:
+   auto, see .whoiam-layout__content above) — the 3 photos split the full
+   content-column width evenly between them (no max-width cap), so the
+   row lines up flush with the text/facts above it; each gets a small
+   caption and a hover lift+zoom consistent with the rest of the page's
+   photo treatments. */
+.whoiam-photos { margin-top: auto; padding-top: 1.5rem; display: flex; gap: .9rem; }
+.whoiam-photo {
+  flex: 1 1 0; margin: 0; aspect-ratio: 1/1;
+  border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-soft);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.whoiam-photo:hover { transform: translateY(-4px) scale(1.05); box-shadow: 0 22px 40px -18px rgba(31,42,60,.4); }
+.whoiam-photo img { width: 100%; height: 72%; object-fit: cover; display: block; }
+.whoiam-photo img + figcaption,
+.whoiam-photo__placeholder + figcaption { height: 28%; }
+.whoiam-photo__placeholder {
+  width: 100%; height: 72%; background: var(--sky-light);
+  display: flex; align-items: center; justify-content: center; text-align: center; padding: .3rem;
+  font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; color: #3a5a75;
+}
+.whoiam-photo figcaption {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: #fff; font-size: .68rem; opacity: .75; padding: .25rem;
+}
+@media (max-width: 780px) { .whoiam-photos { margin-top: 1.5rem; padding-top: 0; justify-content: center; } }
+
+/* ---- 03 My Journey — vertical flow, a down-arrow between each step ---- */
+.journey-flow {
+  position: relative; z-index: 2;
+  max-width: 680px; margin: 3rem auto 0; padding: 0 1.5rem;
+  display: flex; flex-direction: column; align-items: center;
+}
+.journey-flow__step {
+  position: relative;
+  padding: 1.1rem 1.8rem; margin-top: 2.4rem;
+  font-family: var(--font-display); font-size: 1.15rem; text-align: center;
+  border: 1px solid rgba(31,42,60,.2); border-radius: var(--radius-md);
+  background: var(--cream-deep);
+  transition: border-color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.journey-flow__step:hover { border-color: var(--section-accent); transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow-soft); }
+.journey-flow__step:first-child { margin-top: 0; }
+.journey-flow__step:not(:first-child)::before {
+  content: "↓"; position: absolute; top: -2.1rem; left: 50%; transform: translateX(-50%);
+  font-size: 1.1rem; opacity: .5; color: var(--section-accent);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.journey-flow__step:hover::before { transform: translateX(-50%) translateY(3px); }
+
+/* decorative "film strip" photos scattered in the margins beside the
+   flow (script.js's renderAboutJourneyPhotos + nth-child below positions
+   them, deliberately not aligned to any one step — an ambient decoration,
+   not a gallery). Uses .is-in (toggled by initTwoWayReveal, which never
+   unobserves) instead of the page's normal one-shot [data-reveal], so
+   each frame rises into place scrolling down past it and settles back
+   down/fades scrolling back up above it. Hidden below ~980px, where
+   there's no side margin left for them next to the centered flow. */
+.journey-photos { position: absolute; inset: 0; pointer-events: none; }
+.journey-photo {
+  position: absolute; margin: 0; width: 170px; padding: 8px 8px 28px;
+  background: #fff; border-radius: 4px; box-shadow: var(--shadow-soft);
+  opacity: 0; transform: translateY(40px) rotate(var(--tilt, -4deg));
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+.journey-photo.is-in { opacity: 1; transform: translateY(0) rotate(var(--tilt, -4deg)); }
+.journey-photo img, .journey-photo__placeholder {
+  width: 100%; aspect-ratio: 3/2; object-fit: cover; display: block; border-radius: 2px;
+}
+.journey-photo__placeholder {
+  background: var(--moss-light); display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: .4rem; font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: #5b6b47;
+}
+.journey-photo figcaption { margin-top: .6rem; text-align: center; font-size: .78rem; opacity: .7; }
+/* kept in the side margin, clear of the centered step-card column, so
+   they no longer overlap/obscure the cards on typical desktop widths. */
+.journey-photo:nth-child(1) { --tilt: -6deg; top: max(260px, 34%); left: 6%; }
+.journey-photo:nth-child(2) { --tilt: 5deg;  top: 48%; right: 5%; }
+.journey-photo:nth-child(3) { --tilt: -4deg; top: 62%; left: 5%; }
+.journey-photo:nth-child(4) { --tilt: 6deg;  top: 74%; right: 7%; }
+@media (max-width: 1400px) { .journey-photos { display: none; } }
+
+/* ---- 04 Education Timeline — editorial vertical line, not a plain list.
+   Each entry is a broad school stage (Primary / Lower Secondary / Upper
+   Secondary), not one row per grade year, and carries its own accent
+   color (cycled sky/coral/moss via [data-accent], same 3-color rhythm as
+   the Skills groups below) plus a logo slot — a real school logo image
+   once uploaded, or a colored monogram of the school name until then. ---- */
+.edu-timeline-layout {
+  position: relative; z-index: 2; max-width: 1080px; margin: 3rem auto 0; padding: 0 1.5rem;
+  display: grid; grid-template-columns: 1fr auto; column-gap: 3rem; align-items: start;
+}
+.edu-timeline { min-width: 0; }
+.edu-timeline__entry { display: grid; grid-template-columns: 4.6rem 1.5rem 1fr; gap: 0 1.25rem; }
+.edu-timeline__entry[data-accent="sky"]   { --stage-accent: var(--sky-deep);  --stage-accent-soft: var(--sky-light); }
+.edu-timeline__entry[data-accent="coral"] { --stage-accent: var(--coral);     --stage-accent-soft: #f6d9cd; }
+.edu-timeline__entry[data-accent="moss"]  { --stage-accent: var(--moss-deep); --stage-accent-soft: var(--moss-light); }
+.edu-timeline__logo {
+  width: 4.6rem; height: 4.6rem; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--stage-accent-soft, var(--cream-deep));
+  border: 3px solid var(--stage-accent, var(--coral));
+  font-family: var(--font-display); font-weight: 700; font-size: 1.7rem;
+  color: var(--stage-accent, var(--coral));
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.edu-timeline__logo img { width: 100%; height: 100%; object-fit: contain; }
+.edu-timeline__entry:hover .edu-timeline__logo { transform: scale(1.08) rotate(-4deg); }
+.edu-timeline__line { position: relative; display: flex; justify-content: center; }
+.edu-timeline__line::before {
+  content: ""; position: absolute; top: 0; bottom: -2.5rem; width: 1px; background: rgba(31,42,60,.2);
+}
+.edu-timeline__entry:last-child .edu-timeline__line::before { display: none; }
+.edu-timeline__dot {
+  position: relative; z-index: 1; margin-top: .3rem;
+  width: .65rem; height: .65rem; border-radius: 50%; background: var(--stage-accent, var(--coral));
+  box-shadow: 0 0 0 4px var(--cream);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.edu-timeline__entry:hover .edu-timeline__dot { transform: scale(1.5); }
+.edu-timeline__body { padding-top: .5rem; padding-bottom: 2.5rem; transition: transform var(--duration-fast) var(--ease-out); }
+.edu-timeline__entry:hover .edu-timeline__body { transform: translateX(4px); }
+.edu-timeline__stage {
+  font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+  color: var(--stage-accent, var(--coral));
+}
+.edu-timeline__school { font-family: var(--font-display); font-size: 1.3rem; margin-top: .2rem; }
+.edu-timeline__track { font-size: .9rem; margin-top: .25rem; opacity: .7; }
+.edu-timeline__points { margin-top: .6rem; display: flex; flex-direction: column; gap: .35rem; opacity: .85; font-size: .98rem; }
+.edu-timeline__points li { padding-left: 1.1rem; position: relative; }
+.edu-timeline__points li::before { content: "•"; position: absolute; left: 0; color: var(--stage-accent, var(--coral)); }
+
+/* right-hand side — one overlapping "photo pile" (script.js's
+   renderAboutEduTimelineStack + initEduTimelineStackDrag) instead of a
+   photo per stage: each card rests at a small hand-placed fan offset/
+   rotation (--base-x/--base-y/--base-rot, set inline per card), draggable
+   via Pointer Events — dragging adds a translate on top of that resting
+   position (via calc(), so JS never has to read the fan offset back out
+   of the transform), and never snaps back on release. Grabbing (or just
+   clicking) any card raises its z-index above the rest. */
+.edu-timeline-stack { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; width: 280px; }
+.edu-timeline-stack__pile { position: relative; width: 240px; height: 290px; }
+.edu-timeline-stack__card {
+  position: absolute; inset: 0; margin: 0; cursor: grab; touch-action: none;
+  border-radius: var(--radius-md); overflow: hidden;
+  border: 3px solid var(--stage-accent, var(--coral)); box-shadow: var(--shadow-soft);
+  transform: translate(var(--base-x), var(--base-y)) rotate(var(--base-rot));
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+  display: flex; flex-direction: column;
+}
+.edu-timeline-stack__card.is-dragging { cursor: grabbing; box-shadow: 0 28px 50px -16px rgba(31,42,60,.5); }
+.edu-timeline-stack__card:hover { box-shadow: 0 24px 44px -16px rgba(31,42,60,.45); }
+.edu-timeline-stack__card[data-accent="sky"]   { --stage-accent: var(--sky-deep);  --stage-accent-soft: var(--sky-light); }
+.edu-timeline-stack__card[data-accent="coral"] { --stage-accent: var(--coral);     --stage-accent-soft: #f3c4ac; }
+.edu-timeline-stack__card[data-accent="moss"]  { --stage-accent: var(--moss-deep); --stage-accent-soft: var(--moss); }
+.edu-timeline-stack__card img, .edu-timeline-stack__placeholder {
+  flex: 1 1 auto; min-height: 0; width: 100%; object-fit: cover; display: block; pointer-events: none;
+}
+/* solid, clearly-a-color-block placeholder (was a near-page-color tint
+   before, which read as see-through/washed out rather than an opaque
+   photo stand-in) — each stage's own accent tint, at full opacity. */
+.edu-timeline-stack__placeholder {
+  background: var(--stage-accent-soft, var(--cream-deep)); display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: .5rem; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-900);
+}
+.edu-timeline-stack__card figcaption {
+  flex: 0 0 auto; padding: .5rem; text-align: center; font-size: .78rem; opacity: .75; background: #fff; pointer-events: none;
+}
+.edu-timeline-stack__reset {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .55rem 1.1rem; border-radius: 999px; font-size: .85rem;
+  background: var(--cream-deep); border: 1px solid rgba(31,42,60,.15);
+  transition: border-color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out);
+}
+.edu-timeline-stack__reset:hover { border-color: var(--coral); transform: translateY(-2px); }
+@media (max-width: 860px) {
+  .edu-timeline-layout { grid-template-columns: 1fr; justify-items: center; }
+  .edu-timeline-stack { padding-top: 2rem; }
+}
+@media (max-width: 560px) {
+  .edu-timeline__entry { grid-template-columns: 3.2rem 1.2rem 1fr; }
+  .edu-timeline__logo { width: 3.2rem; height: 3.2rem; font-size: 1.2rem; }
+}
+
+/* ---- 05 Skills & Toolkit — grouped skill map, no percentage bars.
+   No card frame around each group — just a centered label line, then that
+   group's own tag row underneath. Each group cycles through the same
+   sky/coral/moss accent set as the Education timeline above, colors its
+   label and each tag's logo badge (a real tool/program logo once
+   uploaded, or a colored monogram of the tool name until then). Each
+   group's tag row is its own infinite horizontal marquee (script.js's
+   fillMarqueeLoop pads the repeated items out until one loop's worth is
+   at least as wide as the row, so a short group never leaves a visible
+   gap — same technique as project.html's activity-photos strip) — loops
+   seamlessly regardless of how many tags a group has, and pauses on
+   hover so a tag can actually be read. ---- */
+.skill-grid { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 2.75rem; }
+.skill-card[data-accent="sky"]   { --tag-accent: var(--sky-deep);  --tag-accent-soft: var(--sky-light); }
+.skill-card[data-accent="coral"] { --tag-accent: var(--coral);     --tag-accent-soft: #f6d9cd; }
+.skill-card[data-accent="moss"]  { --tag-accent: var(--moss-deep); --tag-accent-soft: var(--moss-light); }
+.skill-card__label { text-align: center; font-family: var(--font-display); font-size: 1.35rem; color: var(--tag-accent, var(--ink-900)); }
+.skill-card__viewport { margin-top: 1.1rem; overflow: hidden; }
+.skill-card__items {
+  display: flex; gap: .9rem; width: max-content; align-items: flex-start;
+  animation: about-marquee-scroll 16s linear infinite;
+}
+.skill-card__items:hover { animation-play-state: paused; }
+/* card, not pill — logo sits on its own row, name centered underneath,
+   both centered in the frame. Fixed width+height (not just min-height)
+   so every card in the row is identical regardless of whether its name
+   wraps to one line ("Python") or two ("Scikit-learn"/Thai compounds
+   with no natural break point, hence overflow-wrap below). */
+.skill-tag {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem;
+  flex: 0 0 auto; width: 11rem; height: 7rem; white-space: normal; text-align: center;
+  font-size: .92rem; padding: .6rem; border-radius: var(--radius-md);
+  background: rgba(31,42,60,.06); border: 1px solid rgba(31,42,60,.12);
+  transition: background var(--duration-fast) var(--ease-smooth), border-color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out);
+}
+.skill-tag:hover { background: var(--tag-accent-soft, var(--cream-deep)); border-color: var(--tag-accent, var(--coral)); transform: translateY(-3px) scale(1.05); }
+.skill-tag__logo {
+  width: 2.8rem; height: 2.8rem; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tag-accent, var(--coral)); color: #fff8ea;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem;
+}
+.skill-tag__logo img { width: 100%; height: 100%; object-fit: contain; }
+.skill-tag__name { line-height: 1.25; overflow-wrap: break-word; word-break: break-word; }
+
+/* ---- 06 What I Like to Build — each of the 4 build areas cycles through
+   the same sky/coral/moss accent set as Skills/Timeline, via a colored
+   top edge + matching hover border, so the grid isn't 4 identical cards. ---- */
+.build-grid { position: relative; z-index: 2; margin-top: 2.5rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+.build-card {
+  display: block; padding: 2rem; border-radius: var(--radius-lg);
+  border: 1px solid rgba(31,42,60,.15); border-top: 4px solid var(--card-accent, var(--coral));
+  background: var(--cream-deep);
+  transition: border-color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-smooth);
+}
+.build-card:nth-child(3n+1) { --card-accent: var(--sky-deep); }
+.build-card:nth-child(3n+2) { --card-accent: var(--coral); }
+.build-card:nth-child(3n+3) { --card-accent: var(--moss-deep); }
+.build-card:hover { border-color: var(--card-accent, var(--coral)); transform: translateY(-3px); }
+.build-card__label { font-family: var(--font-display); font-size: 1.4rem; color: var(--card-accent, var(--ink-900)); }
+.build-card__desc { margin-top: .6rem; font-size: .95rem; opacity: .8; line-height: 1.6; }
+.build-card .tech-list { margin-top: 1.1rem; }
+@media (max-width: 720px) { .build-grid { grid-template-columns: 1fr; } }
+
+/* ---- 09 Achievements — same infinite-marquee treatment as the skill tags
+   above (script.js's fillMarqueeLoop builds .achievement-track, padded
+   out with enough repeats to fill the row, inside this viewport). Chips
+   alternate through the sky/coral/moss accent set (nth-child, so it still
+   reads as a rhythm once the list repeats) instead of one flat color. ---- */
+.achievement-grid { position: relative; z-index: 2; margin-top: 2.5rem; overflow: hidden; }
+.achievement-track {
+  display: flex; gap: .75rem; width: max-content;
+  animation: about-marquee-scroll 22s linear infinite;
+}
+.achievement-track:hover { animation-play-state: paused; }
+.achievement-chip {
+  flex: 0 0 auto; white-space: nowrap;
+  padding: .9rem 1.4rem; border-radius: var(--radius-md);
+  background: var(--cream-deep); border: 1px solid rgba(31,42,60,.15);
+  font-family: var(--font-display); font-size: 1.1rem;
+  transition: border-color var(--duration-fast) var(--ease-smooth), background var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-smooth);
+}
+.achievement-chip:nth-child(3n+1) { background: var(--sky-light); border-color: rgba(47,111,176,.35); }
+.achievement-chip:nth-child(3n+2) { background: var(--moss-light); border-color: rgba(143,161,95,.4); }
+.achievement-chip:nth-child(3n+3) { background: #f6d9cd; border-color: rgba(168,62,24,.3); }
+.achievement-chip:hover { background: var(--coral); border-color: transparent; color: #fff8ea; transform: translateY(-3px) rotate(-2deg); }
+
+@keyframes about-marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skill-card__items, .achievement-track { animation: none; }
+}
+
+/* ---- Certifications — a static grid of hand-stamped "seals", not a
+   marquee: there's nothing to scroll, so it just wraps in place. Each
+   stamp gets a slight per-item rotation (nth-child, not random) so the
+   row reads as hand-placed rather than machine-aligned. ---- */
+.stamp-grid { margin-top: 3rem; display: flex; flex-wrap: wrap; gap: 2.5rem; justify-content: flex-start; }
+.stamp[data-accent="sky"]   { --tag-accent: var(--sky-deep);  --tag-accent-soft: var(--sky-light); }
+.stamp[data-accent="coral"] { --tag-accent: var(--coral);     --tag-accent-soft: #f6d9cd; }
+.stamp[data-accent="moss"]  { --tag-accent: var(--moss-deep); --tag-accent-soft: var(--moss-light); }
+/* the seal look is layered: outer dashed ring (.stamp) -> inner solid
+   ring (::before) -> tinted fill (::after) -> text on top, so it reads
+   as a pressed wax/ink stamp rather than a flat circle outline. */
+.stamp {
+  position: relative;
+  width: 10rem; height: 10rem; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem;
+  text-align: center; padding: 1.2rem;
+  border: 2.5px dashed var(--tag-accent, var(--coral));
+  color: var(--tag-accent, var(--coral));
+  transform: rotate(var(--stamp-rot, -4deg));
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow: 0 14px 26px -18px rgba(31,42,60,.4);
+}
+.stamp::before {
+  content: ""; position: absolute; inset: 8px; border-radius: 50%;
+  border: 1px solid var(--tag-accent, var(--coral)); opacity: .55;
+}
+.stamp::after {
+  content: ""; position: absolute; inset: 8px; border-radius: 50%;
+  background: var(--tag-accent-soft, var(--cream-deep)); opacity: .5; z-index: -1;
+}
+.stamp__star {
+  position: absolute; top: -2px; right: 8%; font-size: .85rem;
+  transform: rotate(calc(var(--stamp-rot, -4deg) * -1));
+}
+.stamp:nth-child(2) { --stamp-rot: 3deg; }
+.stamp:nth-child(3) { --stamp-rot: -2deg; }
+.stamp:nth-child(4) { --stamp-rot: 5deg; }
+.stamp:hover { transform: rotate(0deg) scale(1.08); box-shadow: 0 20px 34px -16px rgba(31,42,60,.5); }
+.stamp__title { position: relative; font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+.stamp__rule { width: 1.6rem; height: 1px; background: currentColor; opacity: .5; }
+.stamp__badge { position: relative; font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; }
+@media (max-width: 720px) { .stamp-grid { justify-content: center; } }
+
+/* ---- 07 Beyond the Screen — a big, full-width, caption-free version of
+   the Education Timeline's draggable photo pile (same initDragPile/
+   pointer-drag mechanic in script.js, see renderAboutBeyondStack). ~20
+   cards scattered in a loose grid + jitter across the whole width,
+   heavily overlapping, alternating portrait/landscape framing so it
+   reads as a messy heap rather than a tidy row. Drag any card out, grab
+   one to bring it to the top, reset button restacks everything. ---- */
+.beyond-stack { position: relative; z-index: 2; margin: 3rem auto 0; padding: 0 1.5rem; max-width: 1400px; }
+.beyond-stack__pile { position: relative; width: 100%; height: min(70vw, 600px); }
+.beyond-stack__card {
+  position: absolute; left: var(--base-left); top: var(--base-top); margin: 0;
+  cursor: grab; touch-action: none;
+  background: #fff; border-radius: 4px; box-shadow: var(--shadow-soft);
+  transform: translate(-50%, -50%) rotate(var(--base-rot));
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+.beyond-stack__card.is-portrait { width: 130px; padding: 8px 8px 26px; }
+.beyond-stack__card.is-landscape { width: 175px; padding: 8px 8px 22px; }
+.beyond-stack__card.is-dragging { cursor: grabbing; box-shadow: 0 28px 50px -16px rgba(31,42,60,.5); }
+.beyond-stack__card:hover { box-shadow: 0 22px 40px -16px rgba(31,42,60,.45); }
+.beyond-stack__card img, .beyond-stack__placeholder { width: 100%; display: block; border-radius: 2px; pointer-events: none; }
+.beyond-stack__card.is-portrait img, .beyond-stack__card.is-portrait .beyond-stack__placeholder { aspect-ratio: 3/4; object-fit: cover; }
+.beyond-stack__card.is-landscape img, .beyond-stack__card.is-landscape .beyond-stack__placeholder { aspect-ratio: 4/3; object-fit: cover; }
+.beyond-stack__card[data-tint="moss"] .beyond-stack__placeholder  { background: var(--moss-light); }
+.beyond-stack__card[data-tint="sky"] .beyond-stack__placeholder   { background: var(--sky-light); }
+.beyond-stack__card[data-tint="coral"] .beyond-stack__placeholder { background: #f3c4ac; }
+.beyond-stack__reset {
+  display: flex; align-items: center; gap: .4rem; margin: 1.5rem auto 0;
+  padding: .55rem 1.1rem; border-radius: 999px; font-size: .85rem;
+  background: var(--cream-deep); border: 1px solid rgba(31,42,60,.15);
+  transition: border-color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-out);
+}
+.beyond-stack__reset:hover { border-color: var(--coral); transform: translateY(-2px); }
+@media (max-width: 640px) { .beyond-stack__pile { height: 70vw; } }
+
+/* ---- 08 Currently — the 3 cards cycle the same sky/coral/moss accent
+   set as everything else above, via a colored top edge. ---- */
+.currently-grid { margin-top: 2.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.currently-item {
+  padding: 1.75rem; border-radius: var(--radius-md); background: var(--cream-deep);
+  border: 1px solid rgba(31,42,60,.15); border-top: 4px solid var(--card-accent, var(--coral));
+  display: flex; flex-direction: column; gap: .5rem;
+  transition: border-color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-smooth);
+}
+.currently-item:nth-child(3n+1) { --card-accent: var(--sky-deep); }
+.currently-item:nth-child(3n+2) { --card-accent: var(--coral); }
+.currently-item:nth-child(3n+3) { --card-accent: var(--moss-deep); }
+.currently-item:hover { border-color: var(--card-accent, var(--coral)); transform: translateY(-3px); }
+.currently-item__label { font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--card-accent, var(--coral)); font-weight: 600; }
+.currently-item__value { font-family: var(--font-display); font-size: 1.2rem; }
+@media (max-width: 720px) { .currently-grid { grid-template-columns: 1fr; } }
+
+/* ---- Final CTA — same night-sky deco vocabulary/gold tint as Home's
+   .scene--contact (moon, stars, code glyphs), just with more of them
+   since this is the page's own closing moment. ---- */
+.about-cta {
+  position: relative; overflow: hidden;
+  min-height: 50vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2rem; text-align: center; background: var(--near-black); color: #fff8ea; padding: 4rem 1.5rem;
+}
+.about-cta .scene__deco { z-index: 1; }
+.about-cta__heading, .about-cta__button { position: relative; z-index: 2; }
+.about-cta__heading { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3.2rem); }
+.about-cta__button {
+  display: inline-block; background: #ffd76a; color: var(--near-black);
+  font-weight: 700; padding: .9rem 2.2rem; border-radius: 999px;
+  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+.about-cta__button:hover { transform: translateY(-1px); opacity: .9; }
+.about-cta__button:active { transform: translateY(0); }
+
+
+/* ==========================================================================
+   16. STAGGER DELAYS — layered on top of the shared [data-reveal] system
+   (section 3). Each rule only sets transition-delay, never duration/easing,
+   so every group still reveals through the one shared transition. Grouped
+   items (nth-child) get a short 60ms ramp; unique hero fields get their own
+   hand-placed delay for the same "leader, then supporting detail" feel.
+   ========================================================================== */
+.journey-flow__step:nth-child(1)[data-reveal] { transition-delay: 0ms; }
+.journey-flow__step:nth-child(2)[data-reveal] { transition-delay: 60ms; }
+.journey-flow__step:nth-child(3)[data-reveal] { transition-delay: 120ms; }
+.journey-flow__step:nth-child(4)[data-reveal] { transition-delay: 180ms; }
+.journey-flow__step:nth-child(5)[data-reveal] { transition-delay: 240ms; }
+.journey-flow__step:nth-child(n+6)[data-reveal] { transition-delay: 300ms; }
+
+/* entry and photo are interleaved 1:1 (see .edu-timeline-layout), so
+   "row 1" is DOM children 1–2, "row 2" is 3–4, etc — paired here so an
+   entry and its own photo reveal together instead of one delay-step
+   apart. */
+.edu-timeline__entry:nth-child(1)[data-reveal] { transition-delay: 0ms; }
+.edu-timeline__entry:nth-child(2)[data-reveal] { transition-delay: 80ms; }
+.edu-timeline__entry:nth-child(3)[data-reveal] { transition-delay: 160ms; }
+.edu-timeline__entry:nth-child(n+4)[data-reveal] { transition-delay: 240ms; }
+
+.skill-card:nth-child(1)[data-reveal] { transition-delay: 0ms; }
+.skill-card:nth-child(2)[data-reveal] { transition-delay: 60ms; }
+.skill-card:nth-child(3)[data-reveal] { transition-delay: 120ms; }
+.skill-card:nth-child(4)[data-reveal] { transition-delay: 180ms; }
+
+.build-card:nth-child(1)[data-reveal] { transition-delay: 0ms; }
+.build-card:nth-child(2)[data-reveal] { transition-delay: 60ms; }
+.build-card:nth-child(3)[data-reveal] { transition-delay: 120ms; }
+.build-card:nth-child(4)[data-reveal] { transition-delay: 180ms; }
+
+.currently-item:nth-child(1)[data-reveal] { transition-delay: 0ms; }
+.currently-item:nth-child(2)[data-reveal] { transition-delay: 60ms; }
+.currently-item:nth-child(3)[data-reveal] { transition-delay: 120ms; }
+
+/* case-hero: unique fields, hand-placed "headline, then detail" delay */
+.case-hero__index[data-reveal] { transition-delay: 0ms; }
+.case-hero__title[data-reveal] { transition-delay: 80ms; }
+.case-hero__desc[data-reveal] { transition-delay: 160ms; }
+
+/* work.html / category pages share .scene--work-standalone headers */
+.scene--work-standalone .eyebrow[data-reveal] { transition-delay: 0ms; }
+.scene--work-standalone .section-heading[data-reveal] { transition-delay: 80ms; }
+.scene--work-standalone .page-work__intro[data-reveal] { transition-delay: 160ms; }
+.scene--work-standalone .category-count[data-reveal] { transition-delay: 220ms; }

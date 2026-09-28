@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact</title>
+<meta name="description" content="Get in touch with [NAME] — say hello, share an idea, or start a project together.">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles-contact.css">
+</head>
+<body data-page="contact">
+
+<a class="skip-link" href="#main" data-bind="ui.skipLink">Skip to content</a>
+
+<header class="nav" id="nav" data-nav>
+  <div class="nav__location" data-bind="nav.location">[LOCATION]</div>
+  <nav class="nav__pill" aria-label="Primary">
+    <a data-nav-home><img class="nav__avatar" data-bind-src="nav.avatar" alt="Home" width="32" height="32"></a>
+    <div class="nav__links" data-nav-links></div>
+    <button class="nav__burger" type="button" data-nav-burger aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+  <div class="nav__actions">
+    <button class="nav__lang" id="lang-toggle" type="button" aria-label="Toggle language">
+      <span class="nav__lang-label" data-lang-label>EN</span>
+    </button>
+  </div>
+</header>
+
+<!-- same fixed "rocket" scroll-progress guide as every other page — the
+     [data-scene] attributes below just give initScrollEngine something to
+     find so it computes the whole-page --scroll-progress var this marker
+     reads (see about.html for the same trick, same reasoning). -->
+<div class="scroll-progress" aria-hidden="true">
+  <div class="scroll-progress__track">
+    <div class="scroll-progress__fill" data-scroll-fill></div>
+    <div class="scroll-progress__marker" data-scroll-marker>
+      <svg viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2 C16 7 17 14 15 20 L9 20 C7 14 8 7 12 2 Z" fill="currentColor"/>
+        <circle cx="12" cy="11" r="2.3" fill="#2f6fb0"/>
+        <path d="M9 19.5 L5.5 25.5 L9 23 Z" fill="currentColor" opacity=".75"/>
+        <path d="M15 19.5 L18.5 25.5 L15 23 Z" fill="currentColor" opacity=".75"/>
+        <path d="M10.4 21.5 L12 28.5 L13.6 21.5 Z" fill="#f08462"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<main id="main">
+
+  <!-- ============================= HERO ============================= -->
+  <section class="contact-hero" data-scene data-scene-name="contact-hero">
+    <div class="scene__deco" aria-hidden="true" style="color:rgba(255,255,255,.75)">
+      <span class="deco deco--ambient" style="top:10%; left:6%; font-family:monospace; font-size:1.4rem;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--star" style="top:14%; right:10%; font-size:1rem;">✦</span>
+      <span class="deco deco--ambient deco--cloud" style="top:6%; right:24%; width:56px;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient" style="top:24%; left:3%; font-family:monospace; font-size:1.1rem; opacity:.6;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="top:34%; right:5%; font-size:.75rem;">✧</span>
+      <span class="deco deco--ambient" style="top:44%; left:8%; font-family:monospace; font-size:.75rem; letter-spacing:.1em; opacity:.6;">01001010</span>
+      <span class="deco deco--ambient deco--cloud" style="top:16%; left:34%; width:40px; opacity:.5;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="top:8%; left:48%; font-size:.65rem;">✧</span>
+      <span class="deco deco--ambient deco--star" style="bottom:32%; right:14%; font-size:.85rem;">✦</span>
+      <span class="deco deco--ambient" style="bottom:26%; left:16%; font-family:monospace; font-size:.9rem; opacity:.5;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--cloud" style="bottom:36%; right:30%; width:36px; opacity:.4;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="bottom:10%; left:10%; font-size:.7rem;">✧</span>
+      <span class="deco deco--ambient" style="bottom:6%; right:8%; font-family:monospace; font-size:.7rem; letter-spacing:.1em; opacity:.5;">01000011</span>
+      <span class="deco deco--ambient deco--star" style="top:56%; left:5%; font-size:.6rem;">✦</span>
+      <span class="deco deco--ambient" style="top:64%; right:6%; font-family:monospace; font-size:1rem; opacity:.4;">{ }</span>
+    </div>
+
+    <div class="contact-hero__inner">
+      <p class="eyebrow" data-reveal data-bind="contactPage.hero.eyebrow">Contact</p>
+      <h1 class="contact-hero__heading" data-contact-hero-lines></h1>
+      <p class="contact-hero__sub" data-reveal data-bind="contactPage.hero.sub">Let's start the next chapter together.</p>
+
+      <!-- small continuous-with-Home illustration, not another portrait —
+           a laptop + drifting clouds/stars, gently floating (see
+           .contact-hero__scene in styles-contact.css). -->
+      <div class="contact-hero__scene" aria-hidden="true" data-reveal>
+        <span class="contact-hero__scene-cloud contact-hero__scene-cloud--1">
+          <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+        <span class="contact-hero__scene-star contact-hero__scene-star--1">✦</span>
+        <span class="contact-hero__scene-laptop">
+          <svg viewBox="0 0 64 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="4" width="48" height="30" rx="3" stroke="currentColor" stroke-width="2"/>
+            <text x="32" y="23" text-anchor="middle" font-size="12" font-family="monospace" fill="currentColor">&lt;/&gt;</text>
+            <path d="M2 40 L62 40 L56 46 L8 46 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="contact-hero__scene-star contact-hero__scene-star--2">✧</span>
+        <span class="contact-hero__scene-cloud contact-hero__scene-cloud--2">
+          <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+      </div>
+
+      <!-- <p class="contact-hero__scroll" data-reveal>
+        <span aria-hidden="true">↓</span> <span data-bind="contactPage.hero.scrollHint">scroll to say hello</span>
+      </p> -->
+    </div>
+  </section>
+
+  <!-- ============================= SAY HELLO ============================= -->
+  <section class="contact-hello" data-scene data-scene-name="contact-hello">
+    <div class="scene__deco" aria-hidden="true" style="color:rgba(168,62,24,.3)">
+      <span class="deco deco--ambient" style="top:6%; left:2%; font-family:monospace; font-size:1.2rem;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--star" style="top:10%; right:6%; font-size:.9rem;">✦</span>
+      <span class="deco deco--ambient deco--cloud" style="top:4%; right:20%; width:40px; opacity:.5;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient" style="top:34%; right:3%; font-family:monospace; font-size:1rem; opacity:.4;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="top:46%; left:4%; font-size:.7rem;">✧</span>
+      <span class="deco deco--ambient deco--flower" style="bottom:16%; right:8%; width:26px; opacity:.3;">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="11" r="6"/><circle cx="20" cy="29" r="6"/><circle cx="11" cy="20" r="6"/><circle cx="29" cy="20" r="6"/><circle cx="20" cy="20" r="3.5" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <span class="deco deco--ambient deco--star" style="bottom:8%; left:3%; font-size:.75rem;">✦</span>
+      <span class="deco deco--ambient" style="bottom:28%; left:44%; font-family:monospace; font-size:.65rem; letter-spacing:.1em; opacity:.35;">01001010</span>
+      <span class="deco deco--ambient deco--star" style="top:64%; right:30%; font-size:.65rem;">✧</span>
+    </div>
+    <figure class="contact-hello__photo reveal-image" data-reveal>
+      <img data-bind-src="contactPage.sayHello.photo" alt="">
+    </figure>
+    <div class="contact-hello__text">
+      <h2 class="contact-hello__heading" data-reveal data-bind="contactPage.sayHello.heading">Say Hello</h2>
+      <p class="contact-hello__body" data-reveal data-bind="contactPage.sayHello.body">I'm always open to interesting ideas.</p>
+
+      <div class="contact-email" data-reveal>
+        <p class="contact-email__label" data-bind="contactPage.sayHello.emailLabel">Email</p>
+        <a class="contact-email__value" data-bind="contactPage.sayHello.email" data-contact-email-link>chayatoey.y@gmail.com</a>
+      </div>
+
+      <!-- <div class="contact-availability" data-reveal>
+        <span class="contact-availability__dot" aria-hidden="true"></span>
+        <div>
+          <p class="contact-availability__label" data-bind="contactPage.sayHello.availabilityLabel">Currently open</p>
+          <p class="contact-availability__body" data-bind="contactPage.sayHello.availabilityBody">Open to new opportunities.</p>
+        </div>
+      </div> -->
+
+      <div class="contact-elsewhere" data-reveal>
+        <p class="contact-elsewhere__label" data-bind="contactPage.sayHello.elsewhereLabel">Elsewhere</p>
+        <ul class="contact-elsewhere__list" data-contact-social></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================= FINAL CTA ============================= -->
+  <section class="contact-final" data-scene data-scene-name="contact-final">
+    <div class="scene__deco" aria-hidden="true" style="color:rgba(31,42,60,.25)">
+      <span class="deco deco--ambient" style="top:12%; left:8%; font-family:monospace; font-size:1.2rem;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--star" style="top:20%; right:10%; font-size:.9rem;">✦</span>
+      <span class="deco deco--ambient deco--cloud" style="top:10%; right:26%; width:40px; opacity:.5;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient" style="bottom:22%; left:14%; font-family:monospace; font-size:1rem; opacity:.4;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="bottom:14%; right:16%; font-size:.7rem;">✧</span>
+      <span class="deco deco--ambient deco--star" style="top:60%; left:6%; font-size:.65rem;">✧</span>
+      <span class="deco deco--ambient" style="bottom:8%; right:34%; font-family:monospace; font-size:.7rem; letter-spacing:.1em; opacity:.4;">01001010</span>
+    </div>
+    <h2 class="contact-final__heading" data-reveal data-bind="contactPage.finalCta.heading">Not ready to say hello?</h2>
+    <p class="contact-final__body" data-reveal data-bind="contactPage.finalCta.body">That's okay. Go see what I've been building.</p>
+    <a class="contact-final__button" data-reveal data-bind="contactPage.finalCta.label" data-bind-href="contactPage.finalCta.href">View My Work →</a>
+  </section>
+
+  <!-- .footer--contact is the full-bleed dark band; .footer (shared with
+       Home/About) only constrains the copy+links row inside it to the
+       site's usual 1180px content width. Putting both classes on one
+       element instead (as this used to) made THAT element's own box
+       shrink to 1180px, leaving the real viewport edges showing the
+       page's cream background instead of black. -->
+  <footer class="footer--contact">
+    <div class="scene__deco" aria-hidden="true" style="color:rgba(31,42,60,.3)">
+      <span class="deco deco--ambient" style="top:20%; left:6%; font-family:monospace; font-size:1.1rem;">&lt;/&gt;</span>
+      <span class="deco deco--ambient deco--star" style="top:30%; right:12%; font-size:.8rem;">✦</span>
+      <span class="deco deco--ambient deco--cloud" style="top:15%; right:28%; width:34px; opacity:.5;">
+        <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30h30a9 9 0 0 0 0-18 12 12 0 0 0-23-3 9 9 0 0 0-7 21z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      <span class="deco deco--ambient" style="bottom:18%; left:30%; font-family:monospace; font-size:.9rem; opacity:.35;">{ }</span>
+      <span class="deco deco--ambient deco--star" style="bottom:25%; right:38%; font-size:.65rem;">✧</span>
+    </div>
+    <div class="footer">
+      <p class="footer__copy" data-bind="contact.copyright">© 2026 [NAME]</p>
+      <ul class="footer__social" data-social-list></ul>
+    </div>
+  </footer>
+
+</main>
+
+<script src="data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
