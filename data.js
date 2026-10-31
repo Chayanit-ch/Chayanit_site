@@ -1536,19 +1536,20 @@ const portfolioData = {
       {
         slug: "brain-code-camp",
         index: "53",
-        title: "Brain Code Camp: EEG Cognitive Fatigue Detection",
-        description: "An in-progress project from Brain Code Camp, using machine learning to detect cognitive fatigue from EEG signals, building on and testing the findings of Yang et al. (2025).",
+        title: "Brain Code Camp: Measuring Cognitive Fatigue in Resting EEG through Aperiodic Decomposition and Individual-Level Classification",
+        description: "A completed Brain Code Camp research project replicating Yang et al. (2025) on 608 participants' resting-state EEG — age effects matched the paper on all 24 tests, but fatigue effects matched on only 8 of 22, with the two key markers reversing direction, while a per-person machine learning classifier reached 93.5% accuracy where group averages found nothing.",
         category: "projects",
         year: "2026",
         featured: false,
         heroImage: null,
         gallery: ["assets/braincode/A49D64C8-0220-4FD4-9D4D-D6E3FBCAC18E.JPG", "assets/braincode/IMG_2013.jpg", "assets/braincode/IMG_2233.JPG", "assets/braincode/IMG_2634.PNG", "assets/braincode/IMG_2900.JPG", "assets/braincode/IMG_2944.PNG"],
 
-        role: "Brain Code Camp Participant — designing an individual research project",
+        role: "Brain Code Camp Participant — designed and ran an independent research project",
         context: "Brain Code Camp — Neuroscience × AI Deep Learning program",
-        result: "Project currently in progress",
-        technologies: ["EEG Signal Processing", "Machine Learning", "Python", "Logistic Regression", "Random Forest", "XGBoost"],
+        result: "Published full findings as a research write-up: age effects replicated 24/24, fatigue effects replicated only 8/22 with the two primary markers reversing direction, and a 1D-CNN classifier reached 93.5% pairwise accuracy at the individual level.",
+        technologies: ["EEG Signal Processing", "MNE-Python", "FOOOF / specparam", "Machine Learning", "Python", "Logistic Regression", "Random Forest", "1D-CNN (PyTorch)", "scikit-learn"],
         workLinks: [
+          { label: "Medium Article", href: "https://medium.com/@baitoey8344/measuring-cognitive-fatigue-in-resting-eeg-through-aperiodic-decomposition-and-individual-level-e349950b45c8" },
           { label: "Course Site", href: "https://course2024-braincodecamp.web.app/intro.html" },
           { label: "GitHub Pages", href: "https://braincode101.github.io/" }
         ],
@@ -1556,12 +1557,12 @@ const portfolioData = {
         activityPhotos: ["assets/braincode/A49D64C8-0220-4FD4-9D4D-D6E3FBCAC18E.JPG", "assets/braincode/IMG_2013.jpg", "assets/braincode/IMG_2233.JPG", "assets/braincode/IMG_2634.PNG", "assets/braincode/IMG_2900.JPG", "assets/braincode/IMG_2944.PNG"],
 
         caseStudy: {
-          overview: "Brain Code Camp is a program focused on building programming skills and understanding the relationship between behavior and brain signals through mathematical modeling and AI (Neuroscience × AI/Deep Learning). This project started from an interest in burnout and chronic stress — existing assessment methods like monthly questionnaires are too slow and imprecise, raising the question of whether machine learning could detect these signals before a person even notices them.",
-          problem: "Burnout is a very broad term that's hard to label directly, and datasets with direct burnout labels are extremely hard to find — so the focus shifted to cognitive fatigue, a measurable precursor of burnout that can be tracked directly via EEG. Yang et al., using the same dataset (ds005385, the Dortmund Vital Study on OpenNeuro), only ran statistical analysis — no one had yet tested whether an ML classifier could actually detect these patterns.",
-          approach: "Building on Yang et al., the project asks: if statistical analysis found different EEG patterns by fatigue and age, can an ML classifier learn and predict those same patterns — and would age and behavioral data make it more accurate? The plan is to extract the same features the paper already validated — low alpha power, high alpha power, the aperiodic exponent, a Fatigue Index, and wPLI connectivity — then build 3 model tracks to compare: Model A (EEG only), Model B (+ age group), and Model C (+ synthetic behavioral data), each trained with Logistic Regression, Random Forest, and XGBoost, evaluated by F1-score and Recall.",
-          process: "Planning to use roughly 90 of the dataset's 608 participants, split evenly by age group (30 each: Young 20–34, Middle 35–50, Older 51–70), with 2 recordings per person (pre-task and post-task) for 180 samples total. Results will be compared against Yang et al. (2025) and across Model A vs. B vs. C. Three primary outcomes are targeted: (1) F1-score and Recall for classifying pre- vs. post-task, aiming for F1 > 0.75; (2) a feature-importance ranking, checked against Yang et al.'s findings; (3) a comparison across the 3 age groups, testing whether younger adults really do classify better than older adults as predicted.",
-          result: "The project is still in progress (currently in the data-preparation and experiment-design stage) — no final results yet. As far as research so far shows, no one has directly applied ML to the ds005385 dataset, or systematically compared 3 age groups with ML before, which makes this project a paper-replication study testing the original statistical findings with a new method.",
-          learning: "Practiced reading and interpreting a scientific paper, framing a research question and designing a systematic experiment, working with EEG data and domain-specific feature engineering, and consulting with a TA to scope the question into something achievable."
+          overview: "Brain Code Camp is a program focused on building programming skills and understanding the relationship between behavior and brain signals through mathematical modeling and AI (Neuroscience × AI/Deep Learning). This project started from an interest in burnout — but burnout has no reliable biomarker and almost no usable open dataset, so the focus shifted to cognitive fatigue, a measurable precursor that can be tracked directly via EEG. Research turned up Yang et al. (2025), a paper analyzing the same open dataset and reporting that fatigue produces significant EEG changes, which raised two questions: how far can those findings be trusted if replicated as closely as the paper allows, and could machine learning distinguish a person's before/after recordings when group-level statistics only look at averages?",
+          problem: "Replicating Yang et al. first meant confirming the pipeline was trustworthy by testing it on something known to hold — age. Using OpenNeuro ds005385 (Dortmund Vital Study, 608 participants, 64-channel EEG, eyes-closed/eyes-open, measured before and after a 2-hour continuous task), the group-level age comparison (Young 20–34 vs. Older 51–70, 433 participants) matched the paper on all 24 tests: lower aperiodic exponent, lower offset, and lower high alpha in the older group across all three scalp regions, with low alpha showing no difference anywhere — exactly as reported. That confirmed the preprocessing (filtering, ICA, average referencing, Welch PSD) and the FOOOF/specparam aperiodic decomposition, which separates the genuine alpha peak from the sloping 1/f background, were working correctly.",
+          approach: "The fatigue comparison (same participants, before vs. after the task) is where results diverged: only 8 of 22 channels matched the paper, and the two primary markers — low alpha and the aperiodic exponent — reversed direction, significantly. Rather than assume a coding error, the reversal was checked three independent ways: across all three alpha-power definitions, through raw relative band power with no spectral model at all (effect sizes +0.43 to +0.67, still positive), and via split-half reliability (r = 0.72–0.78, i.e. 0.84–0.88 corrected) — all confirming the increase was real, not an artifact of the FOOOF model.",
+          process: "Five further checks ruled out alternative explanations: matching ICA artifact removal between sessions, excluding 91 flagged recordings, checking marker continuity (97.5% match, p = 0.37), and — the key one — regressing Δlow alpha on Δoffset to test for a pure amplitude-scaling artifact; the intercept at zero drift was +0.096 to +0.098 and significant across all 9 channels, meaning the increase holds even for people whose recording level barely shifted. A sensitivity check also showed the FOOOF fitting range (1–30 Hz vs. 1–40 Hz) shifts the exponent by as much as the fatigue effect itself — a reminder that an unreported parameter can flip a replication's conclusion. The mechanism behind the reversal: after the task, the alpha peak itself grows taller and shifts to a lower frequency, moving power out of the high-alpha band and into the low-alpha band, which a fixed 8–10/10–13 Hz split reads as \"low alpha increasing.\" For the individual-level question, three input representations (24 FOOOF features, the full 1,780-value spectrum, and raw 4-second waveforms) were tested across Logistic Regression, Random Forest, MLP, and a custom 1D-CNN, using identical files and GroupKFold splits throughout. Classification improved as less information was thrown away: FOOOF features reached F1 = 0.608, the full spectrum F1 = 0.694, and raw waveforms through the 1D-CNN F1 = 0.778 on single-file classification — and 93.5% accuracy when the model compared a person's own before/after pair directly.",
+          result: "The project is complete, with full methodology and results published as a research write-up. Age effects replicated in 24 of 24 tests, confirming the pipeline; fatigue effects replicated in only 8 of 22, with the two primary markers reversing direction from Yang et al. (2025) — a reversal validated through multiple independent checks rather than dismissed as error. At the individual level, a 1D-CNN distinguished before/after recordings with 93.5% pairwise accuracy, showing a real per-person fatigue signal that the group averages had been hiding. Three conclusions stood out: between-person differences are far more stable than within-person change, group averages can conceal signal that per-person analysis recovers, and a seemingly minor analysis choice (the FOOOF fitting range) can change a result's direction.",
+          learning: "Practiced reading and closely replicating a scientific paper's methodology, building an EEG preprocessing and feature-extraction pipeline (ICA, average referencing, Welch PSD, FOOOF/specparam), and designing and validating machine learning classifiers (Logistic Regression, Random Forest, MLP, 1D-CNN) across multiple input representations. Most importantly, learned to treat an unexpected, reversed result as a finding worth independently validating — through alternative feature definitions, split-half reliability, and regression-based artifact controls — rather than an error to explain away."
         }
       },
       {
@@ -1748,8 +1749,8 @@ const portfolioData = {
         items: [
           { title: "POSN Computer", badge: "Camp 2", slug: "posn-computer-camp-2" },
           { title: "CEFR", badge: "B1", slug: "cefr-test" },
-          { title: "CU-TEP", badge: "35 points", slug: "cu-tep-test" },
-          { title: "COMPAS-PY1", badge: "Passed", slug: "compas-py1" }
+          { title: "CU-TEP", badge: "61 points", slug: "cu-tep-test" },
+          { title: "COMPAS-PY1", badge: "60% problem solving skills", slug: "compas-py1" }
         ]
       },
       beyondCode: {
@@ -3530,19 +3531,20 @@ const portfolioData = {
       {
         slug: "brain-code-camp",
         index: "53",
-        title: "Brain Code Camp: ตรวจจับ Cognitive Fatigue จากคลื่นสมอง (EEG)",
-        description: "โครงงานที่กำลังพัฒนาในโครงการ Brain Code Camp ใช้ Machine Learning ตรวจจับ cognitive fatigue จากคลื่นสมอง (EEG) โดยอ้างอิงและต่อยอดจากงานวิจัย Yang et al. (2025)",
+        title: "Brain Code Camp: การวัดความล้าทางปัญญาจากคลื่นสมองขณะพัก ด้วยการแยกองค์ประกอบ Aperiodic และการจำแนกรายบุคคล",
+        description: "โครงงานวิจัยที่เสร็จสมบูรณ์จากโครงการ Brain Code Camp ทำซ้ำงานวิจัยของ Yang et al. (2025) บนข้อมูล EEG ขณะพักของผู้เข้าร่วม 608 คน ผลด้านอายุตรงกับเปเปอร์ครบ 24 จาก 24 การทดสอบ แต่ผลด้านความล้าตรงเพียง 8 จาก 22 ช่อง โดยตัววัดหลักสองตัวกลับทิศจากเปเปอร์ ขณะที่ Machine Learning แยกก่อน-หลังรายบุคคลได้ความแม่นยำถึง 93.5%",
         category: "projects",
         year: "2026",
         featured: false,
         heroImage: null,
         gallery: ["assets/braincode/A49D64C8-0220-4FD4-9D4D-D6E3FBCAC18E.JPG", "assets/braincode/IMG_2013.jpg", "assets/braincode/IMG_2233.JPG", "assets/braincode/IMG_2634.PNG", "assets/braincode/IMG_2900.JPG", "assets/braincode/IMG_2944.PNG"],
 
-        role: "ผู้เข้าร่วมโครงการ Brain Code Camp — ออกแบบและพัฒนาโปรเจกต์วิจัยส่วนตัว",
+        role: "ผู้เข้าร่วมโครงการ Brain Code Camp — ออกแบบและดำเนินโปรเจกต์วิจัยส่วนตัว",
         context: "โครงการ Brain Code Camp",
-        result: "โครงงานยังอยู่ระหว่างดำเนินการ",
-        technologies: ["EEG Signal Processing", "Machine Learning", "Python", "Logistic Regression", "Random Forest", "XGBoost"],
+        result: "เผยแพร่บทความวิจัยฉบับสมบูรณ์แล้ว ผลด้านอายุทำซ้ำได้ครบ 24/24 ผลด้านความล้าทำซ้ำได้เพียง 8/22 โดยตัววัดหลักสองตัวกลับทิศจากเปเปอร์ และโมเดล 1D-CNN แยกก่อน-หลังรายบุคคลได้ความแม่นยำ 93.5%",
+        technologies: ["EEG Signal Processing", "MNE-Python", "FOOOF / specparam", "Machine Learning", "Python", "Logistic Regression", "Random Forest", "1D-CNN (PyTorch)", "scikit-learn"],
         workLinks: [
+          { label: "บทความ Medium", href: "https://medium.com/@baitoey8344/measuring-cognitive-fatigue-in-resting-eeg-through-aperiodic-decomposition-and-individual-level-e349950b45c8" },
           { label: "เว็บไซต์ braincode", href: "https://course2024-braincodecamp.web.app/intro.html" },
           { label: "GitHub Pages Braincode", href: "https://braincode101.github.io/" }
         ],
@@ -3550,12 +3552,12 @@ const portfolioData = {
         activityPhotos: ["assets/braincode/A49D64C8-0220-4FD4-9D4D-D6E3FBCAC18E.JPG", "assets/braincode/IMG_2013.jpg", "assets/braincode/IMG_2233.JPG", "assets/braincode/IMG_2634.PNG", "assets/braincode/IMG_2900.JPG", "assets/braincode/IMG_2944.PNG"],
 
         caseStudy: {
-          overview: "Brain Code Camp เป็นโครงการที่มุ่งพัฒนาทักษะและความเข้าใจด้านการเขียนโปรแกรมเพื่อทำความเข้าใจความสัมพันธ์ระหว่างพฤติกรรมและสัญญาณสมอง ผ่านการสร้างแบบจำลองทางคณิตศาสตร์และปัญญาประดิษฐ์ (Neuroscience x AI/Deep Learning) จุดเริ่มต้นของโปรเจกต์นี้มาจากความสนใจในเรื่องภาวะหมดไฟ (burnout) และความเครียดสะสม ซึ่งวิธีประเมินที่มีอยู่อย่างแบบสอบถามรายเดือนนั้นช้าเกินไปและไม่แม่นยำ จึงอยากรู้ว่า Machine Learning จะช่วยตรวจจับสัญญาณเหล่านี้ได้ก่อนที่คนจะรู้ตัวไหม",
-          problem: "Burnout เป็นคำที่กว้างมากและยากต่อการ label โดยตรง อีกทั้ง dataset ที่มี burnout label โดยตรงก็หาได้ยากมาก จึงปรับโฟกัสมาที่ cognitive fatigue ซึ่งเป็น precursor ของ burnout ที่วัดได้จาก EEG โดยตรง และพบว่างานวิจัย Yang et al. ที่ใช้ dataset เดียวกัน (ds005385, Dortmund Vital Study บน OpenNeuro) ทำเพียง statistical analysis เท่านั้น ยังไม่มีใครนำ ML classifier มาทดสอบว่าจับ pattern เหล่านี้ได้จริงหรือไม่",
-          approach: "ต่อยอดจาก Yang et al. โดยตั้งคำถามว่า ถ้า statistical analysis พบว่า EEG มี pattern ต่างกันตาม fatigue และอายุ ML classifier จะจับ pattern เหล่านั้นและทำนายได้ไหม และอายุกับ behavioral data จะช่วยให้แม่นยำขึ้นอีกไหม จึง extract features เดียวกับที่ paper พิสูจน์แล้วว่ามีความหมาย ได้แก่ low alpha power, high alpha power, aperiodic exponent, Fatigue Index และ wPLI connectivity จากนั้นสร้าง 3 model tracks เพื่อเปรียบเทียบ: Model A ใช้ EEG อย่างเดียว, Model B เพิ่ม age group, Model C เพิ่ม synthetic behavioral data โดยแต่ละ track เทรนด้วย Logistic Regression, Random Forest และ XGBoost แล้ววัดผลด้วย F1-Score และ Recall",
-          process: "เลือกตัวอย่างจาก dataset ทั้งหมด 608 คน มาใช้ราว 90 คน แบ่งสม่ำเสมอตาม age group (Young 20-34 ปี, Middle 35-50 ปี, Older 51-70 ปี กลุ่มละ 30 คน) แต่ละคนมี 2 recordings คือ pre-task และ post-task รวม 180 samples และวางแผนเปรียบเทียบผลกับ Yang et al. (2025) รวมถึงเปรียบเทียบ Model A vs B vs C กันเอง โดยตั้งเป้า Primary Outcome ไว้ 3 อย่าง: (1) F1-Score และ Recall ของแต่ละ model ในการแยก pre-task vs post-task เป้าหมาย F1 > 0.75 (2) Feature importance ranking ว่าตรงกับที่ Yang et al. พบไหม (3) เปรียบเทียบผลระหว่าง 3 age groups ว่า young classify ได้ดีกว่า older จริงไหม",
-          result: "โครงงานยังอยู่ระหว่างดำเนินการ (อยู่ในขั้นตอนเตรียมข้อมูลและออกแบบการทดลอง)",
-          learning: "ได้ฝึกอ่านและตีความงานวิจัยทางวิทยาศาสตร์ (scientific paper) การตั้งคำถามวิจัยและออกแบบการทดลองอย่างเป็นระบบ การทำงานกับข้อมูล EEG และ feature engineering เฉพาะทาง รวมถึงการปรึกษาและรับคำแนะนำจากผู้เชี่ยวชาญ (TA) เพื่อปรับขอบเขตโจทย์ให้เป็นไปได้จริง"
+          overview: "Brain Code Camp เป็นโครงการที่มุ่งพัฒนาทักษะและความเข้าใจด้านการเขียนโปรแกรมเพื่อทำความเข้าใจความสัมพันธ์ระหว่างพฤติกรรมและสัญญาณสมอง ผ่านการสร้างแบบจำลองทางคณิตศาสตร์และปัญญาประดิษฐ์ (Neuroscience x AI/Deep Learning) จุดเริ่มต้นของโปรเจกต์นี้มาจากความสนใจในภาวะหมดไฟ (burnout) แต่ burnout ไม่มี biomarker ที่แน่นอนและแทบไม่มี dataset เปิดให้ใช้ จึงเปลี่ยนมาโฟกัสที่ cognitive fatigue ซึ่งเป็นส่วนหนึ่งของ burnout ที่วัดได้จาก EEG โดยตรง ระหว่างหาข้อมูลเจองานวิจัยของ Yang et al. (2025) ที่วิเคราะห์ dataset เดียวกันและรายงานว่าความล้าทำให้คลื่นสมองเปลี่ยนไปอย่างมีนัยสำคัญ จึงตั้งคำถามสองข้อ: ข้อสังเกตของเปเปอร์เชื่อได้มากน้อยแค่ไหนถ้าทำซ้ำให้ใกล้เคียงที่สุด และ Machine Learning จะแยกก่อน-หลังของแต่ละคนได้ไหม ในเมื่อการทดสอบทางสถิติดูแค่ค่าเฉลี่ยของกลุ่ม",
+          problem: "การทำซ้ำ Yang et al. ต้องเริ่มจากยืนยันก่อนว่า pipeline เชื่อถือได้ โดยทดสอบกับสิ่งที่รู้อยู่แล้วว่าควรเจอ คืออายุ ใช้ dataset OpenNeuro ds005385 (Dortmund Vital Study ผู้เข้าร่วม 608 คน, EEG 64 ขั้ว, หลับตา/ลืมตา, วัดก่อนและหลังทำแบบทดสอบต่อเนื่อง 2 ชั่วโมง) การเทียบกลุ่มอายุระดับกลุ่ม (Young 20–34 ปี กับ Older 51–70 ปี รวม 433 คน) ตรงกับเปเปอร์ครบทั้ง 24 การทดสอบ: aperiodic exponent ต่ำกว่า, offset ต่ำกว่า และ high alpha ต่ำกว่าในกลุ่มอายุมากทุกบริเวณ ส่วน low alpha ไม่ต่างกันสักบริเวณ ตรงกับที่รายงานไว้ทุกข้อ ยืนยันว่าขั้น preprocessing (filtering, ICA, average reference, Welch PSD) และการแยกองค์ประกอบ aperiodic ด้วย FOOOF/specparam ซึ่งแยกยอด alpha จริงออกจากพื้นหลัง 1/f ทำงานถูกต้อง",
+          approach: "พอมาถึงการเทียบความล้า (คนเดียวกัน ก่อนกับหลังทำงาน) ผลกลับไม่ตรงเหมือนเดิม ตรงกับเปเปอร์เพียง 8 จาก 22 ช่อง และตัววัดหลักสองตัวคือ low alpha กับ aperiodic exponent กลับทิศอย่างมีนัยสำคัญ แทนที่จะสรุปว่าเขียนโค้ดผิด จึงตรวจทิศทางที่กลับด้วยสามทางอิสระ: ทั้งสามนิยามของ alpha ให้ผลตรงกัน, คำนวณ relative band power ตรง ๆ โดยไม่ผ่านโมเดลสเปกตรัมใดเลย (ขนาดผล +0.43 ถึง +0.67 เป็นบวกเช่นกัน) และตรวจ split-half reliability (r = 0.72–0.78 หรือ 0.84–0.88 หลังแก้ไข) ทั้งสามทางยืนยันว่า low alpha ที่เพิ่มขึ้นเป็นของจริง ไม่ใช่สิ่งแปลกปลอมจากโมเดล FOOOF",
+          process: "ตรวจสอบเพิ่มอีก 5 ทางเพื่อตัดคำอธิบายอื่นออก: จับคู่จำนวน component ที่ ICA ลบออกให้เท่ากันระหว่างสอง session, ตัด 91 คนที่ชุดข้อมูลติดธงออก, เช็กความต่อเนื่องของสัญญาณ (ตรงกัน 97.5%, p = 0.37) และข้อที่สำคัญที่สุดคือถดถอย Δ low alpha บน Δ offset เพื่อตรวจสิ่งแปลกปลอมจากการคูณค่าคงที่ จุดตัดแกนที่ไม่มีการเลื่อนระดับเลยอยู่ที่ +0.096 ถึง +0.098 มีนัยสำคัญครบทั้ง 9 ช่อง แปลว่าผลยังอยู่แม้ในคนที่ระดับสัญญาณแทบไม่เปลี่ยน และยังพบว่าช่วงความถี่ที่ใช้ fit FOOOF (1–30 Hz เทียบ 1–40 Hz) ทำให้ exponent ขยับมากพอกับขนาดผลของความล้าเอง เป็นเครื่องเตือนว่าพารามิเตอร์ที่เปเปอร์ไม่ระบุสามารถเปลี่ยนข้อสรุปการทำซ้ำได้ทั้งหมด กลไกที่อธิบายการกลับทิศคือ หลังทำงาน ยอด alpha สูงขึ้นและเลื่อนไปทางความถี่ต่ำพร้อมกัน ทำให้พลังงานบางส่วนย้ายจาก high alpha ไปอยู่ใน low alpha ซึ่งเมื่อวัดด้วยเส้นแบ่งตายตัว 8–10/10–13 Hz จะอ่านออกมาว่า \"low alpha เพิ่มขึ้น\" ในฝั่ง Machine Learning ทดสอบข้อมูลเข้า 3 แบบ (ค่า FOOOF 24 ค่า, สเปกตรัมเต็ม 1,780 ค่า, และรูปคลื่นดิบ) ด้วย Logistic Regression, Random Forest, MLP และ 1D-CNN ที่เขียนเอง โดยใช้ไฟล์และ GroupKFold ชุดเดียวกันตลอด ผลคือยิ่งย่อข้อมูลน้อย ยิ่งจำแนกได้ดีขึ้น: ค่า FOOOF ได้ F1 = 0.608, สเปกตรัมเต็มได้ F1 = 0.694 และรูปคลื่นดิบผ่าน 1D-CNN ได้ F1 = 0.778 ในโจทย์ไฟล์เดียว และได้ความแม่นยำ 93.5% เมื่อให้โมเดลเทียบคู่ก่อน-หลังของคนเดียวกันโดยตรง",
+          result: "โครงงานเสร็จสมบูรณ์แล้ว พร้อมเผยแพร่วิธีการและผลวิจัยฉบับเต็ม ผลด้านอายุทำซ้ำได้ครบ 24 จาก 24 การทดสอบ ยืนยันว่า pipeline ถูกต้อง ส่วนผลด้านความล้าทำซ้ำได้เพียง 8 จาก 22 ช่อง โดยตัววัดหลักสองตัวกลับทิศจาก Yang et al. (2025) ซึ่งผ่านการตรวจสอบหลายทางอิสระจนมั่นใจว่าไม่ใช่ความผิดพลาด ในระดับรายบุคคล โมเดล 1D-CNN แยกไฟล์ก่อน-หลังได้ความแม่นยำ 93.5% แสดงว่ามีสัญญาณความล้าที่แท้จริงในระดับคน ซึ่งค่าเฉลี่ยของกลุ่มซ่อนไว้ สามข้อสรุปสำคัญคือ ความต่างระหว่างคนมั่นคงกว่าความเปลี่ยนแปลงภายในคนมาก ค่าเฉลี่ยกลุ่มสามารถซ่อนสัญญาณที่การวิเคราะห์รายบุคคลดึงออกมาได้ และการตั้งค่าที่ดูเหมือนรายละเอียดเล็ก ๆ (ช่วง fit ของ FOOOF) ก็เปลี่ยนทิศของข้อสรุปได้",
+          learning: "ได้ฝึกอ่านและทำซ้ำวิธีการของงานวิจัยทางวิทยาศาสตร์อย่างใกล้เคียง สร้าง pipeline การประมวลผลและสกัด feature จาก EEG (ICA, average reference, Welch PSD, FOOOF/specparam) และออกแบบพร้อมตรวจสอบโมเดล Machine Learning (Logistic Regression, Random Forest, MLP, 1D-CNN) บนข้อมูลเข้าหลายรูปแบบ ที่สำคัญที่สุดคือได้ฝึกมองผลที่กลับทิศอย่างไม่คาดคิดว่าเป็นข้อค้นพบที่ต้องตรวจสอบอย่างเป็นระบบ ผ่านนิยาม feature อื่น, split-half reliability และการถดถอยควบคุมสิ่งแปลกปลอม มากกว่าจะมองว่าเป็นความผิดพลาดที่ต้องกลบเกลื่อน"
         }
       },
       {
@@ -3742,8 +3744,8 @@ const portfolioData = {
         items: [
           { title: "สอวน. คอมพิวเตอร์", badge: "ค่าย 2", slug: "posn-computer-camp-2" },
           { title: "CEFR", badge: "B1", slug: "cefr-test" },
-          { title: "CU-TEP", badge: "35", slug: "cu-tep-test" },
-          { title: "COMPAS-PY1", badge: "ผ่านการทดสอบ", slug: "compas-py1" }
+          { title: "CU-TEP", badge: "61/120 คะแนน", slug: "cu-tep-test" },
+          { title: "COMPAS-PY1", badge: "60% problem solving skills", slug: "compas-py1" }
         ]
       },
       beyondCode: {
